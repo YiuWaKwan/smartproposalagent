@@ -1,0 +1,1 @@
+"""Smart Proposal Agent application."""

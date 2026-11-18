@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Proposal — 新建达人推荐任务</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pink: #FF3B70;
+    --pink-deep: #FF2D55;
+    --pink-bg: #FFF0F4;
+    --pink-tag-bg: #FAF0F5;
+    --pink-tag-line: #F0D2E1;
+    --pink-tag-plus: #EC4882;
+    --red: #D93333;
+    --ink: #1F1035;
+    --ink-2: #1F1224;
+    --ink-3: #333340;
+    --heading: #1A1A1F;
+    --label: #4D4D59;
+    --muted: #9CA3AF;
+    --placeholder: #A6ABB2;
+    --gray-600: #6B7280;
+    --line: #E5E7EB;
+    --line-pink: #F0E4EC;
+    --bg-root: #F6F6F8;
+    --bg-main: #FAFAFC;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-size: 14px;
+    background: var(--bg-root);
+    color: var(--ink);
+  }
+  svg { display: block; }
+  button { font-family: inherit; cursor: pointer; }
+  input, textarea { font-family: inherit; outline: none; }
+
+  .app { display: flex; min-height: 100vh; }
+
+  .tinted::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('assets/hero-model.png') center / cover no-repeat;
+    opacity: 0.15;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  /* ---------- Main ---------- */
+  .main {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding: 24px;
+    background: var(--bg-main);
+  }
+  .main > * { position: relative; }
+
+  .breadcrumbs { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+  .breadcrumbs .crumb { color: var(--gray-600); font-weight: 400; }
+  .breadcrumbs .crumb.current { color: var(--pink); font-weight: 500; }
+  .breadcrumbs .icon-wrapper { color: var(--muted); display: flex; }
+
+  .title-row { display: flex; align-items: center; gap: 12px; }
+  .brand-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #FFFFFF;
+    border: 1px solid var(--line-pink);
+    box-shadow: 0 4px 12px rgba(255, 59, 112, 0.20);
+    color: var(--pink);
+    font-size: 13px; font-weight: 500;
+    flex-shrink: 0;
+  }
+  .campaign-title-input {
+    width: 683px;
+    max-width: 100%;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--bg-main);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--ink-2);
+  }
+  .campaign-title-input:focus { border-color: var(--pink); background: #FFFFFF; }
+
+  /* ---------- Campaign info card ---------- */
+  .info-card {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px 28px;
+    border-radius: 16px;
+    background: #FFFFFF;
+    border: 1px solid var(--line-pink);
+    box-shadow: 0 8px 24px rgba(255, 59, 112, 0.13);
+  }
+  .meta-grid { display: flex; gap: 40px; }
+  .meta-col { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+  .meta-field { display: flex; align-items: baseline; gap: 12px; }
+  .meta-label { font-size: 14px; font-weight: 400; color: var(--muted); white-space: nowrap; }
+  .meta-value { font-size: 14px; font-weight: 500; color: var(--ink); }
+  .meta-divider { border: none; border-top: 1px solid var(--line-pink); }
+
+  .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+  .field-label { font-size: 13px; font-weight: 500; color: var(--label); }
+  .field-label .req { color: var(--pink); font-style: normal; }
+  .field-label-sub { font-size: 14px; font-weight: 400; color: var(--muted); }
+  .input-soft {
+    height: 40px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--bg-main);
+    font-size: 13px;
+    color: var(--ink-2);
+    width: 100%;
+  }
+  .input-soft::placeholder { color: var(--placeholder); }
+  .fields-row { display: flex; gap: 24px; }
+
+  .group-heading { font-size: 16px; font-weight: 700; color: var(--heading); }
+
+  /* ---------- Product config card ---------- */
+  .product-card {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px 28px;
+    border-radius: 16px;
+    background: #FFFFFF;
+    border: 1px solid var(--line-pink);
+    box-shadow: 0 8px 24px rgba(255, 59, 112, 0.13);
+  }
+  .form-fields { display: flex; flex-direction: column; gap: 20px; }
+  .field-label-strong { font-size: 13px; font-weight: 600; color: var(--label); }
+  .input-box {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: #FFFFFF;
+    font-size: 13px;
+    color: var(--ink-2);
+    resize: none;
+  }
+  .input-box::placeholder { color: var(--placeholder); }
+  .input-box:focus { border-color: var(--pink); }
+  textarea.input-box { min-height: 72px; }
+  textarea.input-box.tall { min-height: 88px; }
+
+  /* ---------- Header actions ---------- */
+  .header-actions { display: flex; justify-content: flex-end; gap: 12px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    padding: 8px 20px;
+    height: 32px;
+    border-radius: 999px;
+    font-size: 14px;
+  }
+  .btn-white {
+    background: #FFFFFF;
+    border: 1px solid var(--pink);
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .btn-white:hover { background: var(--pink-bg); }
+  .btn-export {
+    background: #FF0000;
+    border: 1px solid var(--pink);
+    color: #FFFFFF;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 8px 18px rgba(255, 59, 112, 0.35);
+  }
+  .btn-export:hover { filter: brightness(1.08); }
+
+  /* ---------- Task section ---------- */
+  .task-section { display: flex; flex-direction: column; gap: 24px; }
+  .section-title-row { display: flex; flex-direction: column; gap: 8px; }
+  .title-line { display: flex; align-items: center; gap: 8px; }
+  .section-title { font-size: 18px; font-weight: 700; color: var(--ink-2); }
+  .refresh-button {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: #F2F2F7;
+    border: none;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-2);
+  }
+  .section-divider { border: none; border-top: 1px solid var(--line-pink); }
+  .btn-new-task {
+    align-self: flex-start;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px;
+    height: 32px;
+    border: none;
+    border-radius: 12px;
+    background: #FF0000;
+    color: #FFFFFF;
+    font-size: 14px; font-weight: 600;
+    box-shadow: 0 8px 24px rgba(255, 59, 112, 0.4);
+  }
+  .btn-new-task:hover { filter: brightness(1.05); }
+
+  /* ---------- AI assistant (loading state) ---------- */
+  .ai-assistant {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 24px;
+    border-radius: 20px;
+    background: #FFFFFF;
+    border: 2px solid var(--pink);
+    box-shadow: 0 8px 24px rgba(255, 59, 112, 0.26);
+    overflow: hidden;
+  }
+  .ai-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 16px; font-weight: 700; color: var(--pink);
+  }
+  .ai-input {
+    width: 100%;
+    height: 100px;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--line-pink);
+    background: #FCF8FA;
+    font-size: 14px;
+    color: var(--ink-2);
+    resize: none;
+  }
+  .ai-input::placeholder { color: var(--muted); }
+  .ai-actions { display: flex; justify-content: flex-end; }
+  .btn-ai-identify {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px;
+    border: none; border-radius: 999px;
+    background: #FF0000;
+    color: #FFFFFF;
+    font-size: 14px; font-weight: 700;
+    box-shadow: 0 8px 18px rgba(255, 59, 112, 0.51);
+  }
+
+  .ai-loading-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+  }
+  .ai-spinner-wrap { position: relative; width: 72px; height: 72px; }
+  .ai-spinner {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from 20deg,
+      rgba(255, 59, 112, 0.12) 0deg,
+      rgba(255, 59, 112, 0.12) 60deg,
+      #FF2D55 220deg,
+      #FF3B70 330deg,
+      rgba(255, 59, 112, 0.12) 360deg);
+    -webkit-mask: radial-gradient(closest-side, transparent calc(78% - 1px), #000 78%);
+    mask: radial-gradient(closest-side, transparent calc(78% - 1px), #000 78%);
+    animation: spin 1.3s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ai-loading-text {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+    white-space: nowrap;
+  }
+
+  /* ---------- New task create card ---------- */
+  .new-task-create {
+    position: relative;
+    padding: 24px 24px 24px 28px;
+    border-radius: 20px;
+    background: #FFFFFF;
+    border: 1px solid var(--line-pink);
+    box-shadow: 0 8px 24px rgba(255, 59, 112, 0.13);
+    overflow: hidden;
+  }
+  .new-task-create::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--pink);
+  }
+  .task-form { display: flex; flex-direction: column; gap: 16px; }
+  .task-row { display: flex; gap: 16px; }
+  .task-row > .field { flex: 1; }
+
+  .t-label { font-size: 12px; font-weight: 400; color: var(--label); }
+  .t-label .req { color: var(--pink); font-style: normal; }
+  .t-label .hint { color: var(--muted); margin-left: 2px; }
+  .t-input {
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 12px;
+    border: 1px solid var(--line-pink);
+    background: #FFFFFF;
+    font-size: 12px;
+    color: var(--ink-2);
+    width: 100%;
+    display: flex; align-items: center;
+  }
+  input.t-input, select.t-input { appearance: none; }
+  .t-input::placeholder { color: var(--placeholder); }
+  .t-input:focus { border-color: var(--pink); }
+  .select-wrap { position: relative; }
+  .select-wrap .chev {
+    position: absolute;
+    right: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  .tags-container { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 6px 10px;
+    border-radius: 16px;
+    background: var(--pink-tag-bg);
+    border: 1px solid var(--pink-tag-line);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .tag .plus { color: var(--pink-tag-plus); font-weight: 400; line-height: 1; }
+  .tag .tag-label { color: var(--gray-600); font-weight: 400; white-space: nowrap; }
+  .tag:hover { border-color: var(--pink-tag-plus); }
+
+  .task-actions { display: flex; justify-content: flex-end; }
+  .btn-create-task {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 20px;
+    border: none; border-radius: 999px;
+    background: #FF0000;
+    color: #FFFFFF;
+    font-size: 14px; font-weight: 700;
+    box-shadow: 0 8px 18px rgba(255, 59, 112, 0.20);
+  }
+  .btn-create-task:hover { filter: brightness(1.05); }
+
+  /* ---------- Tier 分布 modal ---------- */
+  .tier-modal-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(31, 16, 53, 0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .tier-modal-mask.open { display: flex; }
+  .tier-modal {
+    width: 640px;
+    max-width: calc(100vw - 48px);
+    background: #FFFFFF;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 24px 60px rgba(31, 16, 53, 0.25);
+  }
+  .tier-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding: 2px 4px 0;
+  }
+  .tier-modal-title { font-size: 16px; font-weight: 700; color: var(--ink-2); }
+  .tier-modal-close {
+    width: 28px; height: 28px;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tier-modal-close:hover { background: var(--pink-bg); color: var(--pink); }
+  .tier-rows { display: flex; flex-direction: column; gap: 14px; }
+  .tier-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 18px;
+    border-radius: 12px;
+    background: var(--pink-bg);
+    border: 1px solid transparent;
+  }
+  .tier-row.off { background: #FFFFFF; border-color: var(--line-pink); }
+  .tier-check {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    border: 1px solid var(--pink);
+    background: var(--pink);
+    display: flex; align-items: center; justify-content: center;
+    color: #FFFFFF;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .tier-row.off .tier-check { background: #FFFFFF; border-color: #D8DCE3; color: transparent; }
+  .tier-name { font-size: 15px; font-weight: 600; color: var(--ink-2); width: 52px; }
+  .tier-field-label { font-size: 14px; color: var(--label); }
+  .tier-field-label .req { color: var(--pink); font-style: normal; }
+  .tier-input {
+    display: flex;
+    align-items: center;
+    width: 120px;
+    height: 40px;
+    padding: 0 12px;
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .tier-input:focus-within { border-color: var(--pink); }
+  .tier-input input {
+    border: none;
+    width: 100%;
+    min-width: 0;
+    background: transparent;
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+  .tier-input input::placeholder { color: var(--placeholder); }
+  .tier-input .suffix { font-size: 14px; color: var(--ink-3); margin-left: 6px; flex-shrink: 0; }
+  .tier-modal-foot { display: flex; justify-content: flex-end; margin-top: 16px; }
+  .btn-tier-confirm {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 8px 24px;
+    height: 32px;
+    border: none;
+    border-radius: 10px;
+    background: #FF0000;
+    color: #FFFFFF;
+    font-size: 14px; font-weight: 600;
+    box-shadow: 0 8px 18px rgba(255, 59, 112, 0.35);
+  }
+  .btn-tier-confirm:hover { filter: brightness(1.05); }
+
+  /* ---------- KPI modal ---------- */
+  .kpi-modal-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(31, 16, 53, 0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .kpi-modal-mask.open { display: flex; }
+  .kpi-modal {
+    width: 460px;
+    max-width: calc(100vw - 48px);
+    background: #FFFFFF;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 24px 60px rgba(31, 16, 53, 0.25);
+  }
+  .kpi-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding: 2px 4px 0;
+  }
+  .kpi-modal-title { font-size: 16px; font-weight: 700; color: var(--ink-2); }
+  .kpi-modal-close {
+    width: 28px; height: 28px;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .kpi-modal-close:hover { background: var(--pink-bg); color: var(--pink); }
+  .kpi-rows { display: flex; flex-direction: column; gap: 14px; }
+  .kpi-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 18px;
+    border-radius: 12px;
+    background: var(--pink-bg);
+    border: 1px solid transparent;
+  }
+  .kpi-row.off { background: #FFFFFF; border-color: var(--line-pink); }
+  .kpi-check {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    border: 1px solid var(--pink);
+    background: var(--pink);
+    display: flex; align-items: center; justify-content: center;
+    color: #FFFFFF;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .kpi-row.off .kpi-check { background: #FFFFFF; border-color: #D8DCE3; color: transparent; }
+  .kpi-name { font-size: 15px; font-weight: 600; color: var(--ink-2); width: 52px; }
+  .kpi-ge { font-size: 15px; color: var(--ink-3); }
+  .kpi-input {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 12px;
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .kpi-input:focus-within { border-color: var(--pink); }
+  .kpi-input input {
+    border: none;
+    width: 100%;
+    min-width: 0;
+    background: transparent;
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+  .kpi-input input::placeholder { color: var(--placeholder); }
+  .kpi-row.off .kpi-input { background: #F7F7F9; border-color: #EDEDF2; }
+  .kpi-modal-foot { display: flex; justify-content: flex-end; margin-top: 16px; }
+  .btn-kpi-confirm {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 8px 24px;
+    height: 32px;
+    border: none;
+    border-radius: 10px;
+    background: #FF0000;
+    color: #FFFFFF;
+    font-size: 14px; font-weight: 600;
+    box-shadow: 0 8px 18px rgba(255, 59, 112, 0.35);
+  }
+  .btn-kpi-confirm:hover { filter: brightness(1.05); }
+
+  /* ---------- Card collapse ---------- */
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+  }
+  .card-head .meta-grid { flex: 1; min-width: 0; }
+  .card-toggle {
+    width: 28px; height: 28px;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: transform .2s ease;
+  }
+  .card-toggle:hover { background: var(--pink-bg); color: var(--pink); }
+  .info-card.collapsed .card-body,
+  .product-card.collapsed .card-body { display: none; }
+  .product-card:not(.collapsed) .product-name-summary { display: none; }
+  .info-card:not(.collapsed) .card-toggle,
+  .product-card:not(.collapsed) .card-toggle { transform: rotate(180deg); }
+  .info-card.collapsed,
+  .product-card.collapsed { gap: 0; }
+
+  @media (max-width: 1100px) {
+    .campaign-title-input { width: 100%; }
+    .meta-grid, .fields-row, .task-row { flex-direction: column; gap: 16px; }
+  }
+</style>
+  <script>try{if(localStorage.getItem('spSidebarCollapsed')==='1')document.documentElement.classList.add('sb-collapsed')}catch(e){}</script>
+  <link rel="stylesheet" href="assets/sidebar.css">
+  <script src="assets/sidebar.js" defer></script>
+</head>
+<body>
+<div class="app">
+
+  <!-- Expanded sidebar -->
+  <aside class="sidebar">
+    <div class="logo-container">
+      <div class="logo-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+      <div class="logo-text">Smart Proposal</div>
+    </div>
+
+    <nav class="nav-groups">
+      <div class="nav-group">
+        <button class="nav-group-head" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></span>
+          <span class="g-label">活动管理</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-campaign-list.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+            <span>活动列表</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-campaign-create.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            <span>创建活动</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-campaign-empty.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+            <span>活动列表（空状态）</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-precheck-submit-records.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+            <span>提交记录</span>
+          </a>
+        </div>
+      </div>
+      <div class="nav-group open">
+        <button class="nav-group-head active" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg></span>
+          <span class="g-label">选人任务</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-task-list.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z"/></svg>
+            <span>活动详情（任务列表）</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-kolRec-detail.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.7L19.6 10l-5.7 1.9L12 17.6l-1.9-5.7L4.4 10l5.7-1.3L12 3Z"/><path d="M19 15l.9 2.6L22.5 18.5l-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9L19 15Z"/></svg>
+            <span>AI 选人结果</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-tier.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1 14h6"/><path d="M9 8h6"/><path d="M17 16h6"/></svg>
+            <span>圈选总览 By Tier</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-talking-angle.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1 14h6"/><path d="M9 8h6"/><path d="M17 16h6"/></svg>
+            <span>圈选总览 By Talking Angle</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-tier-confirm.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.1V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            <span>名单确认</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-tier-confirmed.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.1V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            <span>名单确认（已确认）</span>
+          </a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <button class="nav-group-head" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg></span>
+          <span class="g-label">Pre-Check</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-precheck-query.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="m21 21-4.3-4.3"/></svg>
+            <span>Pre-Check 查询</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-precheck-history.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"/><path d="M12 6v6l4 2"/></svg>
+            <span>Pre-Check 历史</span>
+          </a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <button class="nav-group-head" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><path d="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></span>
+          <span class="g-label">Alert List</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-alert-list.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1Z"/></svg>
+            <span>Alert List</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-alert-list-dialog.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+            <span>状态变更确认</span>
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <button class="sidebar-toggle" aria-label="收起侧边栏">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <div class="user-row">
+        <div class="user-avatar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><path d="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></div>
+        <span class="user-name">Raven.Cai</span>
+        <button class="user-logout" aria-label="退出登录"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><path d="M12 2v10"/></svg></button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main tinted">
+
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <nav class="breadcrumbs">
+        <span class="crumb">任务列表</span>
+        <span class="icon-wrapper">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </span>
+        <span class="crumb current">活动管理</span>
+      </nav>
+      <div class="title-row">
+        <button class="brand-chip">
+          Lancome
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <input class="campaign-title-input" value="LAN-精纯眼霜-Always on-20240522-20240730-618大促" style="color:var(--muted);">
+      </div>
+    </div>
+
+    <!-- Campaign info card (collapsible, default collapsed) -->
+    <section class="info-card collapsed">
+      <div class="card-head">
+        <div class="meta-grid">
+          <div class="meta-col">
+            <div class="meta-field"><span class="meta-label">品牌</span><span class="meta-value">Lancome 兰蔻</span></div>
+          </div>
+          <div class="meta-col">
+            <div class="meta-field"><span class="meta-label" style="width:118px;">Campaign周期</span><span class="meta-value">2024-05-22 至 2024-07-30</span></div>
+          </div>
+        </div>
+        <button class="card-toggle" aria-label="展开">
+          <svg width="16" height="10" viewBox="0 0 16 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 6 6 6-6"/></svg>
+        </button>
+      </div>
+      <div class="card-body">
+        <hr class="meta-divider">
+
+        <div class="field">
+          <span class="field-label">标题<em class="req">*</em> </span>
+          <input class="input-soft" value="618 大促" style="color:var(--placeholder);">
+        </div>
+
+        <div class="fields-row">
+          <div class="field">
+            <span class="field-label">活动类型（下拉框）<em class="req">*</em></span>
+            <input class="input-soft" value="Always On" style="color:var(--placeholder);">
+          </div>
+          <div class="field">
+            <span class="field-label">总预算</span>
+            <input class="input-soft" value="">
+          </div>
+        </div>
+
+        <span class="group-heading">目标人群</span>
+
+        <div class="field">
+          <span class="field-label">画像<em class="req">*</em> </span>
+          <input class="input-soft" value="&ldquo;精致中产&rdquo;人群（以26-40岁、居住高线城市的已婚女性为主，具备高端消费能力和品位）。" style="color:var(--placeholder);">
+        </div>
+
+        <div class="field">
+          <span class="field-label">情绪</span>
+          <input class="input-soft" value="悦己、向往高品质生活、追求仪式感与松弛感、&ldquo;投资于美好生活&rdquo;的认同感。" style="color:var(--placeholder);">
+        </div>
+      </div>
+    </section>
+
+    <!-- Product config card (collapsible, default collapsed) -->
+    <section class="product-card collapsed">
+      <div class="card-head">
+        <div class="meta-grid">
+          <div class="meta-col">
+            <div class="meta-field product-name-summary"><span class="meta-label">产品名称</span><span class="meta-value">兰蔻菁纯眼霜</span></div>
+          </div>
+        </div>
+        <button class="card-toggle" aria-label="展开">
+          <svg width="16" height="10" viewBox="0 0 16 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 6 6 6-6"/></svg>
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="form-fields">
+          <div class="field">
+            <span class="field-label-strong">产品名称 <em class="req" style="color:var(--pink);font-style:normal;">*</em></span>
+            <input class="input-box" style="height:40px;min-height:40px;" value="兰蔻菁纯眼霜" placeholder="请输入产品名称">
+          </div>
+          <div class="field">
+            <span class="field-label-strong">产品卖点(客观产品力) <em class="req" style="color:var(--pink);font-style:normal;">*</em></span>
+            <textarea class="input-box tall" placeholder="产品最能打的功效或优势是什么？（如：精致轮廓/独家修复科技）">其核心优势在于“玻色因 + 玫瑰 + 独家 T12 肽”的三重抗老复配，以及针对眼周不同纹路（深纹、干纹、动态纹）的精准数据验证。</textarea>
+          </div>
+          <div class="field">
+            <span class="field-label-strong">核心种草心智</span>
+            <textarea class="input-box" placeholder="希望达人重点帮我们把什么&ldquo;印象/心智&rdquo;打进TA心里？（如：人生的第一支抗老精华）"></textarea>
+          </div>
+          <div class="field">
+            <span class="field-label-strong">竞品</span>
+            <textarea class="input-box" placeholder="需要对标哪些竞品？有哪些排竞要求？（如A品牌a产品；要求近一个月未发布相关竞品）"></textarea>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Header actions -->
+    <div class="header-actions">
+      <button class="btn btn-white">删除活动</button>
+      <button class="btn btn-white">编辑</button>
+      <button class="btn btn-export">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>
+        </svg>
+        导出已确认达人
+      </button>
+    </div>
+
+    <!-- Task list section -->
+    <section class="task-section">
+      <div class="section-title-row">
+        <div class="title-line">
+          <span class="section-title">达人推荐 (5)</span>
+          <button class="refresh-button" aria-label="刷新">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>
+            </svg>
+          </button>
+        </div>
+        <hr class="section-divider">
+        <button class="btn-new-task">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"/><path d="M12 5v14"/>
+          </svg>
+          新建达人推荐任务
+        </button>
+      </div>
+
+      <!-- AI assistant with loading overlay -->
+      <div class="ai-assistant">
+        <div class="ai-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>
+          </svg>
+          AI 需求助手
+        </div>
+        <textarea class="ai-input" placeholder="描述你的推广需求，例如：我们需要寻找活跃在上海的美妆博主，擅长视频测评，针对20-30岁职场女性..."></textarea>
+        <div class="ai-actions">
+          <button class="btn-ai-identify">AI识别</button>
+        </div>
+        <div class="ai-loading-overlay">
+          <div class="ai-spinner-wrap">
+            <div class="ai-spinner"></div>
+            <span class="ai-loading-text">AI 识别中，请稍候...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- New task create form -->
+      <div class="new-task-create">
+        <div class="task-form">
+
+          <div class="task-row">
+            <div class="field" style="gap:4px;">
+              <span class="t-label">任务名字</span>
+              <input class="t-input" placeholder="第一批人群选取">
+            </div>
+            <div class="field" style="gap:4px;">
+              <span class="t-label">达人数量 <em class="req">*</em></span>
+              <input class="t-input" placeholder="5">
+            </div>
+            <div class="field" style="gap:4px;">
+              <span class="t-label">Tier 分布 <em class="req">*</em></span>
+              <div class="select-wrap" id="tierField" style="cursor:pointer;">
+                <input class="t-input" id="tierInput" placeholder="Tier1、Tier2、Tier3" readonly>
+                <span class="chev">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="task-row">
+            <div class="field" style="gap:4px;">
+              <span class="t-label">平台需求 <em class="req">*</em></span>
+              <div class="select-wrap">
+                <select class="t-input">
+                  <option value="" disabled selected hidden>请选择平台</option>
+                  <option>抖音</option>
+                  <option>小红书</option>
+                </select>
+                <span class="chev">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </span>
+              </div>
+            </div>
+            <div class="field" style="gap:4px;">
+              <span class="t-label">预算 <em class="req">*</em></span>
+              <input class="t-input" placeholder="1,500,000">
+            </div>
+            <div class="field" style="gap:6px;">
+              <span class="t-label">KPI（多选） <em class="req">*</em></span>
+              <div class="select-wrap" id="kpiField" style="cursor:pointer;">
+                <input class="t-input" id="kpiInput" placeholder="CPM、CPC" readonly>
+                <span class="chev">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field" style="gap:4px;">
+            <span class="t-label">Talking Angle</span>
+            <input class="t-input" placeholder="横测、好物分享">
+          </div>
+
+          <div class="task-row" style="gap:16px;">
+            <div class="field" style="gap:4px;">
+              <span class="t-label">内容类型 <em class="req">*</em><span class="hint">笔记内容内容，如随手Po/旅游Vlog</span></span>
+              <input class="t-input" placeholder="美妆垂类 / 泛美垂 lifestyle 博主（妆教博主、职场/旅行博主、护肤博主）">
+              <div class="tags-container" style="margin-top:4px;">
+                <span class="tag"><span class="plus">+</span><span class="tag-label">美妆垂类</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">泛美垂 lifestyle</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">妆教博主</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">职场博主</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">旅行博主</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">护肤博主</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">穿搭博主</span></span>
+              </div>
+            </div>
+            <div class="field" style="gap:4px;">
+              <span class="t-label">场景<span class="hint">产品植入场景，如职场通勤/熬夜护肤/居家/户外</span></span>
+              <input class="t-input" placeholder="春夏防晒、五一出行、职场通勤、旅行、大促囤货/万年回购等">
+              <div class="tags-container" style="margin-top:4px;">
+                <span class="tag"><span class="plus">+</span><span class="tag-label">春夏防晒</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">五一出行</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">职场通勤</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">旅行</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">大促囤货</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">万年回购</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">日常护肤</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="task-row" style="gap:16px;padding-top:10px;">
+            <div class="field" style="gap:4px;">
+              <span class="t-label">KOL 要求</span>
+              <input class="t-input" placeholder="例如：女性粉丝为主、美妆垂类、近 90 天有更新">
+              <div class="tags-container" style="margin-top:4px;">
+                <span class="tag"><span class="plus">+</span><span class="tag-label">女性粉丝</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">男性粉丝</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">美妆垂类</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">粉丝数 1w+</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">有带货经验</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">近90天有更新</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">互动率 ≥ 3%</span></span>
+              </div>
+            </div>
+            <div class="field" style="gap:4px;">
+              <span class="t-label">达人能力<span class="hint">对达人创作的要求，如人设符合贵妇/擅长口播</span></span>
+              <input class="t-input" placeholder="成长性（Rising star KOL）、带货能力（高 Search + 高 engagement 的 KOL）">
+              <div class="tags-container" style="margin-top:4px;">
+                <span class="tag"><span class="plus">+</span><span class="tag-label">成长性</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">Rising Star KOL</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">带货能力</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">高 Search</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">高 Engagement</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">内容创作力</span></span>
+                <span class="tag"><span class="plus">+</span><span class="tag-label">粉丝粘性强</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="task-actions">
+            <button class="btn-create-task">创建任务</button>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Tier 分布 modal -->
+<div class="tier-modal-mask" id="tierModalMask">
+  <div class="tier-modal">
+    <div class="tier-modal-head">
+      <span class="tier-modal-title">Tier 分布</span>
+      <button class="tier-modal-close" id="tierModalClose" aria-label="关闭">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="tier-rows">
+      <div class="tier-row" data-tier="Tier1">
+        <span class="tier-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="tier-name">Tier1</span>
+        <span class="tier-field-label">单个金额上限 <em class="req">*</em></span>
+        <span class="tier-input"><input type="text" placeholder="金额"><span class="suffix">¥</span></span>
+        <span class="tier-field-label">达人数量</span>
+        <span class="tier-input"><input type="text" placeholder=""><span class="suffix">人</span></span>
+      </div>
+      <div class="tier-row" data-tier="Tier2">
+        <span class="tier-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="tier-name">Tier2</span>
+        <span class="tier-field-label">单个金额上限 <em class="req">*</em></span>
+        <span class="tier-input"><input type="text" placeholder="金额"><span class="suffix">¥</span></span>
+        <span class="tier-field-label">达人数量</span>
+        <span class="tier-input"><input type="text" placeholder=""><span class="suffix">人</span></span>
+      </div>
+      <div class="tier-row" data-tier="Tier3">
+        <span class="tier-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="tier-name">Tier3</span>
+        <span class="tier-field-label">单个金额上限 <em class="req">*</em></span>
+        <span class="tier-input"><input type="text" placeholder="金额"><span class="suffix">¥</span></span>
+        <span class="tier-field-label">达人数量</span>
+        <span class="tier-input"><input type="text" placeholder=""><span class="suffix">人</span></span>
+      </div>
+      <div class="tier-row" data-tier="Tier4">
+        <span class="tier-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="tier-name">Tier4</span>
+        <span class="tier-field-label">单个金额上限 <em class="req">*</em></span>
+        <span class="tier-input"><input type="text" placeholder="金额"><span class="suffix">¥</span></span>
+        <span class="tier-field-label">达人数量</span>
+        <span class="tier-input"><input type="text" placeholder=""><span class="suffix">人</span></span>
+      </div>
+      <div class="tier-row off" data-tier="Tier5">
+        <span class="tier-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="tier-name">Tier5</span>
+        <span class="tier-field-label">单个金额上限 <em class="req">*</em></span>
+        <span class="tier-input"><input type="text" placeholder="金额"><span class="suffix">¥</span></span>
+        <span class="tier-field-label">达人数量</span>
+        <span class="tier-input"><input type="text" placeholder=""><span class="suffix">人</span></span>
+      </div>
+    </div>
+    <div class="tier-modal-foot">
+      <button class="btn-tier-confirm" id="tierModalConfirm">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var mask = document.getElementById('tierModalMask');
+    var field = document.getElementById('tierField');
+    var tierInput = document.getElementById('tierInput');
+    var closeBtn = document.getElementById('tierModalClose');
+    var confirmBtn = document.getElementById('tierModalConfirm');
+
+    field.addEventListener('click', function () { mask.classList.add('open'); });
+    closeBtn.addEventListener('click', function () { mask.classList.remove('open'); });
+    mask.addEventListener('click', function (e) { if (e.target === mask) mask.classList.remove('open'); });
+
+    mask.querySelectorAll('.tier-row .tier-check').forEach(function (chk) {
+      chk.addEventListener('click', function () {
+        chk.closest('.tier-row').classList.toggle('off');
+      });
+    });
+
+    confirmBtn.addEventListener('click', function () {
+      var picked = [];
+      mask.querySelectorAll('.tier-row').forEach(function (row) {
+        if (!row.classList.contains('off')) picked.push(row.dataset.tier);
+      });
+      tierInput.value = picked.join('、');
+      tierInput.style.color = '';
+      mask.classList.remove('open');
+    });
+  })();
+</script>
+<!-- KPI（多选）modal -->
+<div class="kpi-modal-mask" id="kpiModalMask">
+  <div class="kpi-modal">
+    <div class="kpi-modal-head">
+      <span class="kpi-modal-title">KPI（多选）</span>
+      <button class="kpi-modal-close" id="kpiModalClose" aria-label="关闭">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="kpi-rows">
+      <div class="kpi-row" data-kpi="CPM">
+        <span class="kpi-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="kpi-name">CPM</span>
+        <span class="kpi-ge">≥</span>
+        <span class="kpi-input"><input type="text" placeholder="请输入数值"></span>
+      </div>
+      <div class="kpi-row" data-kpi="CPC">
+        <span class="kpi-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="kpi-name">CPC</span>
+        <span class="kpi-ge">≥</span>
+        <span class="kpi-input"><input type="text" placeholder="请输入数值"></span>
+      </div>
+      <div class="kpi-row off" data-kpi="CPE">
+        <span class="kpi-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="kpi-name">CPE</span>
+        <span class="kpi-ge">≥</span>
+        <span class="kpi-input"><input type="text" placeholder="请输入数值" disabled></span>
+      </div>
+      <div class="kpi-row off" data-kpi="CPS">
+        <span class="kpi-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="kpi-name">CPS</span>
+        <span class="kpi-ge">≥</span>
+        <span class="kpi-input"><input type="text" placeholder="请输入数值" disabled></span>
+      </div>
+    </div>
+    <div class="kpi-modal-foot">
+      <button class="btn-kpi-confirm" id="kpiModalConfirm">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var kpiMask = document.getElementById('kpiModalMask');
+    var kpiField = document.getElementById('kpiField');
+    var kpiInput = document.getElementById('kpiInput');
+    var kpiClose = document.getElementById('kpiModalClose');
+    var kpiConfirm = document.getElementById('kpiModalConfirm');
+
+    kpiField.addEventListener('click', function () { kpiMask.classList.add('open'); });
+    kpiClose.addEventListener('click', function () { kpiMask.classList.remove('open'); });
+    kpiMask.addEventListener('click', function (e) { if (e.target === kpiMask) kpiMask.classList.remove('open'); });
+
+    kpiMask.querySelectorAll('.kpi-row .kpi-check').forEach(function (chk) {
+      chk.addEventListener('click', function () {
+        var row = chk.closest('.kpi-row');
+        row.classList.toggle('off');
+        row.querySelector('.kpi-input input').disabled = row.classList.contains('off');
+      });
+    });
+
+    kpiConfirm.addEventListener('click', function () {
+      var picked = [];
+      kpiMask.querySelectorAll('.kpi-row').forEach(function (row) {
+        if (!row.classList.contains('off')) picked.push(row.dataset.kpi);
+      });
+      kpiInput.value = picked.join('、');
+      kpiInput.style.color = '';
+      kpiMask.classList.remove('open');
+    });
+  })();
+</script>
+<script>
+  // 信息卡折叠：点头部或箭头切换，默认折叠
+  (function () {
+    document.querySelectorAll('.info-card, .product-card').forEach(function (card) {
+      var head = card.querySelector('.card-head');
+      var toggle = card.querySelector('.card-toggle');
+      function flip() {
+        var collapsed = card.classList.toggle('collapsed');
+        toggle.setAttribute('aria-label', collapsed ? '展开' : '收起');
+      }
+      head.addEventListener('click', flip);
+    });
+  })();
+</script>
+</body>
+</html>

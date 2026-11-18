@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Proposal — 创建活动</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pink: #FF3B70;
+    --pink-deep: #FF2D55;
+    --pink-bg: #FFF0F4;
+    --ink: #1F1035;
+    --ink-2: #1F1224;
+    --label: #4D4D59;
+    --placeholder: #9CA3AF;
+    --gray-600: #6B7280;
+    --line: #E5E7EB;
+    --line-pink: #F0E4EC;
+    --bg-root: #F6F6F8;
+    --bg-main: #FAFAFC;
+    --inactive-bg: #F3F4F6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-size: 14px;
+    background: var(--bg-root);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+  svg { display: block; }
+  button { font-family: inherit; cursor: pointer; }
+  input, textarea { font-family: inherit; }
+
+  .app { display: flex; min-height: 100vh; position: relative; }
+
+  .tinted::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('assets/hero-model.png') center / cover no-repeat;
+    opacity: 0.15;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  /* ---------- Main ---------- */
+  .main {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding: 24px;
+    background: var(--bg-main);
+  }
+  .main::before { opacity: 0.20; }
+  .main > * { position: relative; }
+
+  .breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+  }
+  .breadcrumbs .crumb { color: var(--gray-600); font-weight: 400; }
+  .breadcrumbs .crumb.current { color: var(--pink); font-weight: 600; }
+  .breadcrumbs .icon-wrapper { color: var(--gray-600); display: flex; }
+
+  .campaign-title-input {
+    width: 683px;
+    max-width: 100%;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--bg-main);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--ink-2);
+    outline: none;
+  }
+  .campaign-title-input::placeholder { color: var(--placeholder); }
+  .campaign-title-input:focus { border-color: var(--pink); }
+
+  /* ---------- Stepper ---------- */
+  .stepper-area {
+    padding: 32px;
+    border-radius: 16px;
+    background: #FFFFFF;
+    border: 1px solid var(--line-pink);
+    display: flex;
+    justify-content: center;
+  }
+  .stepper-track {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .step-pill {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 42px;
+    padding: 0 20px;
+    border-radius: 999px;
+    background: var(--inactive-bg);
+    border: 1px solid var(--line);
+    color: var(--placeholder);
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .step-pill.completed, .step-pill.active {
+    background: var(--pink);
+    border: none;
+    color: #FFFFFF;
+    font-weight: 700;
+    box-shadow: 0 8px 20px -6px rgba(255, 59, 112, 0.51);
+  }
+  .step-pill .num { font-size: 16px; }
+  .step-connector {
+    width: 150px;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--pink) 0%, var(--line) 100%);
+  }
+
+  /* ---------- Form card ---------- */
+  .form-card {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px 28px;
+    border-radius: 16px;
+    background: #FFFFFF;
+    border: 1px solid var(--line-pink);
+    box-shadow: 0 8px 24px rgba(255, 59, 112, 0.13);
+  }
+  .card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink-2);
+  }
+
+  .meta-row {
+    display: flex;
+    gap: 40px;
+  }
+  .meta-item { display: flex; gap: 12px; font-size: 14px; }
+  .meta-item .label { color: var(--placeholder); font-weight: 400; }
+  .meta-item .value { color: var(--ink-2); font-weight: 500; }
+  .meta-divider {
+    border: none;
+    border-top: 1px solid var(--line-pink);
+  }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--label);
+  }
+  .field-label.required-pink { color: var(--pink); }
+
+  .text-input, .text-area {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: #FFFFFF;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--ink-2);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .text-input { height: 40px; }
+  .text-area { height: 72px; resize: none; line-height: 1.5; }
+  .text-area.tall { height: 88px; }
+  .text-input::placeholder, .text-area::placeholder { color: var(--placeholder); }
+  .text-input:focus, .text-area:focus { border-color: var(--pink); }
+
+  .title-input {
+    font-size: 13px;
+    height: 40px;
+    padding: 10px 12px;
+    width: calc(50% - 12px);
+  }
+
+  .form-row {
+    display: flex;
+    gap: 24px;
+  }
+  .form-row .field { flex: 1; }
+
+  .audience-group {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .section-heading {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink-2);
+    margin-top: 8px;
+  }
+  .audience-group .section-heading { margin-top: 0; margin-bottom: 8px; }
+
+  .select-wrap { position: relative; }
+  /* ---------- KPI（多选）弹窗 ---------- */
+  .kpi-modal-mask {
+    position: fixed; inset: 0;
+    background: rgba(31, 16, 53, 0.45);
+    display: none; align-items: center; justify-content: center;
+    z-index: 110;
+  }
+  .kpi-modal-mask.open { display: flex; }
+  .kpi-modal {
+    width: 460px; max-width: calc(100vw - 48px);
+    background: #FFFFFF; border-radius: 16px; padding: 16px;
+    box-shadow: 0 24px 60px rgba(31, 16, 53, 0.25);
+  }
+  .kpi-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding: 2px 4px 0; }
+  .kpi-modal-title { font-size: 16px; font-weight: 700; color: var(--ink-2); }
+  .kpi-modal-close {
+    width: 28px; height: 28px; background: none; border: none; border-radius: 8px;
+    color: var(--placeholder); display: flex; align-items: center; justify-content: center;
+  }
+  .kpi-modal-close:hover { background: var(--pink-bg); color: var(--pink); }
+  .kpi-rows { display: flex; flex-direction: column; gap: 14px; }
+  .kpi-row {
+    display: flex; align-items: center; gap: 14px; padding: 12px 18px;
+    border-radius: 12px; background: var(--pink-bg); border: 1px solid transparent;
+  }
+  .kpi-row.off { background: #FFFFFF; border-color: var(--line-pink); }
+  .kpi-check {
+    width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--pink);
+    background: var(--pink); color: #FFFFFF; cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .kpi-row.off .kpi-check { background: #FFFFFF; border-color: #D8DCE3; color: transparent; }
+  .kpi-name { font-size: 15px; font-weight: 600; color: var(--ink-2); }
+  .kpi-modal-foot { display: flex; justify-content: flex-end; margin-top: 16px; }
+  .btn-kpi-confirm {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 8px 24px; height: 32px; border: none; border-radius: 10px;
+    background: #FF0000; color: #FFFFFF; font-size: 14px; font-weight: 600;
+    box-shadow: 0 8px 18px rgba(255, 59, 112, 0.35); cursor: pointer;
+  }
+  .btn-kpi-confirm:hover { filter: brightness(1.05); }
+  .select-wrap select {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+  }
+  .select-wrap::after {
+    content: '';
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 7px;
+    height: 7px;
+    border-right: 1.5px solid var(--placeholder);
+    border-bottom: 1.5px solid var(--placeholder);
+    pointer-events: none;
+  }
+
+  /* ---------- Bottom actions ---------- */
+  .bottom-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 24px;
+    height: 32px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+  .btn-ghost {
+    background: transparent;
+    border: none;
+    color: var(--gray-600);
+    font-weight: 600;
+  }
+  .btn-primary {
+    background: #FF0000;
+    border: none;
+    color: #FFFFFF;
+    font-weight: 700;
+    box-shadow: 0 8px 18px rgba(255, 59, 112, 0.4);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(255, 59, 112, 0.5);
+  }
+  .btn-outline {
+    background: #FFFFFF;
+    border: 1.5px solid var(--pink);
+    color: var(--pink);
+    font-weight: 700;
+  }
+  .btn-outline:hover { background: var(--pink-bg); }
+
+  /* ---------- Step views ---------- */
+  .step-view { display: none; flex-direction: column; gap: 24px; }
+  .step-view.visible { display: flex; }
+
+  /* ---------- 总预算（点击分配平台预算） ---------- */
+  .budget-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: #FFFFFF;
+    transition: border-color 0.15s;
+  }
+  .budget-trigger:hover { border-color: var(--pink); }
+  .budget-trigger.error { border-color: #FA5151; }
+  .budget-trigger.error .budget-hint { color: #FA5151; }
+  /* 必填拦截 toast */
+  .req-toast {
+    position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%) translateY(8px);
+    background: rgba(31, 31, 36, 0.92); color: #FFFFFF; font-size: 13px; font-weight: 500;
+    padding: 10px 22px; border-radius: 99px; white-space: nowrap;
+    box-shadow: 0 8px 24px rgba(31, 16, 53, 0.24);
+    opacity: 0; pointer-events: none; transition: opacity 0.25s ease, transform 0.25s ease;
+    z-index: 120;
+  }
+  .req-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .budget-amount {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink-2);
+  }
+  .budget-amount.empty { color: var(--placeholder); font-weight: 400; }
+  .budget-hint { font-size: 12px; color: var(--placeholder); }
+  .budget-chev { margin-left: auto; color: var(--placeholder); }
+  .budget-breakdown { display: flex; gap: 8px; flex-wrap: wrap; }
+  .budget-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: var(--pink-bg);
+    border: 1px solid var(--line-pink);
+    font-size: 12px;
+    color: var(--label);
+  }
+  .budget-chip img { height: 14px; width: auto; object-fit: contain; }
+  .budget-chip .b-name { font-weight: 500; }
+  .budget-chip b { color: var(--pink); font-weight: 700; }
+
+  /* ---------- 预算分配弹窗 ---------- */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    background: rgba(29, 33, 41, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.hidden { display: none; }
+  .budget-modal {
+    width: 480px;
+    max-width: calc(100vw - 48px);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: #FFFFFF;
+    border-radius: 16px;
+    padding: 24px 28px;
+    box-shadow: 0 24px 64px rgba(29, 33, 41, 0.25);
+  }
+  .budget-modal-header { display: flex; align-items: center; justify-content: space-between; }
+  .budget-modal-title { font-size: 16px; font-weight: 700; color: var(--ink-2); }
+  .budget-modal-close {
+    width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent;
+    color: var(--placeholder); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .budget-modal-close:hover { background: var(--inactive-bg); color: var(--ink-2); }
+  .budget-rows { display: flex; flex-direction: column; gap: 12px; }
+  .platform-logo { height: 22px; width: auto; object-fit: contain; flex-shrink: 0; }
+  .platform-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .budget-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--bg-main);
+  }
+  .budget-row .platform-logo { height: 20px; }
+  .budget-input-wrap {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 180px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #FFFFFF;
+  }
+  .budget-input-wrap:focus-within { border-color: var(--pink); }
+  .budget-input-wrap .prefix { font-size: 13px; color: var(--placeholder); }
+  .budget-input-wrap input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-2);
+    text-align: right;
+  }
+  .budget-total-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: var(--pink-bg);
+    border: 1px solid var(--line-pink);
+  }
+  .budget-total-row .t-label { font-size: 13px; font-weight: 500; color: var(--label); }
+  .budget-total-row .t-value { font-size: 18px; font-weight: 700; color: var(--pink); }
+  .budget-modal-actions { display: flex; justify-content: flex-end; gap: 12px; }
+</style>
+  <script>try{if(localStorage.getItem('spSidebarCollapsed')==='1')document.documentElement.classList.add('sb-collapsed')}catch(e){}</script>
+  <link rel="stylesheet" href="assets/sidebar.css">
+  <script src="assets/sidebar.js" defer></script>
+</head>
+<body>
+<div class="app">
+
+  <!-- Collapsed sidebar -->
+  <aside class="sidebar">
+    <div class="logo-container">
+      <div class="logo-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+      <div class="logo-text">Smart Proposal</div>
+    </div>
+
+    <nav class="nav-groups">
+      <div class="nav-group open">
+        <button class="nav-group-head active" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></span>
+          <span class="g-label">活动管理</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-campaign-list.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+            <span>活动列表</span>
+          </a>
+          <a class="nav-child active" href="smart-proposal-campaign-create.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            <span>创建活动</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-campaign-empty.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+            <span>活动列表（空状态）</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-precheck-submit-records.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+            <span>提交记录</span>
+          </a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <button class="nav-group-head" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg></span>
+          <span class="g-label">选人任务</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-task-list.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z"/></svg>
+            <span>活动详情（任务列表）</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-kolRec-detail.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.7L19.6 10l-5.7 1.9L12 17.6l-1.9-5.7L4.4 10l5.7-1.3L12 3Z"/><path d="M19 15l.9 2.6L22.5 18.5l-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9L19 15Z"/></svg>
+            <span>AI 选人结果</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-tier.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1 14h6"/><path d="M9 8h6"/><path d="M17 16h6"/></svg>
+            <span>圈选总览 By Tier</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-talking-angle.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1 14h6"/><path d="M9 8h6"/><path d="M17 16h6"/></svg>
+            <span>圈选总览 By Talking Angle</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-tier-confirm.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.1V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            <span>名单确认</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-tier-confirmed.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.1V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            <span>名单确认（已确认）</span>
+          </a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <button class="nav-group-head" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg></span>
+          <span class="g-label">Pre-Check</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-precheck-query.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="m21 21-4.3-4.3"/></svg>
+            <span>Pre-Check 查询</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-precheck-history.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"/><path d="M12 6v6l4 2"/></svg>
+            <span>Pre-Check 历史</span>
+          </a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <button class="nav-group-head" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><path d="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></span>
+          <span class="g-label">Alert List</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-alert-list.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1Z"/></svg>
+            <span>Alert List</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-alert-list-dialog.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+            <span>状态变更确认</span>
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <button class="sidebar-toggle" aria-label="收起侧边栏">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <div class="user-row">
+        <div class="user-avatar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><path d="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></div>
+        <span class="user-name">Raven.Cai</span>
+        <button class="user-logout" aria-label="退出登录"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><path d="M12 2v10"/></svg></button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main tinted">
+    <nav class="breadcrumbs">
+      <span class="crumb">任务列表</span>
+      <span class="icon-wrapper">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      </span>
+      <span class="crumb">活动管理</span>
+      <span class="icon-wrapper">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      </span>
+      <span class="crumb current">创建活动</span>
+    </nav>
+
+    <input class="campaign-title-input" id="campaignTitle" placeholder="20260605_XXXX_XXXXX">
+
+    <!-- Stepper -->
+    <div class="stepper-area">
+      <div class="stepper-track">
+        <div class="step-pill active" id="pill1">
+          <span class="pill-icon" id="pill1Icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/>
+              <path d="M12 22V12"/><path d="m3.3 7 8.7 5 8.7-5"/>
+            </svg>
+          </span>
+          <span class="num">1</span>
+          <span>产品信息</span>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-pill" id="pill2">
+          <span class="pill-icon" id="pill2Icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+            </svg>
+          </span>
+          <span class="num">2</span>
+          <span>活动信息</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Step 1: 产品信息 ============ -->
+    <section class="step-view visible" id="step1">
+      <div class="form-card">
+        <div class="card-title">产品信息配置</div>
+
+        <div class="field">
+          <span class="field-label">产品名称 *</span>
+          <input class="text-input" placeholder="请输入产品名称">
+        </div>
+
+        <div class="field">
+          <span class="field-label">产品卖点(客观产品力) *</span>
+          <textarea class="text-area tall" placeholder="产品最能打的功效或优势是什么？（如 精致轮廓/独家修复科技）"></textarea>
+        </div>
+
+        <div class="field">
+          <span class="field-label">核心种草心智</span>
+          <textarea class="text-area" placeholder="希望达人传达的key message"></textarea>
+        </div>
+
+        <div class="field">
+          <span class="field-label">竞品</span>
+          <textarea class="text-area" placeholder="需要对标哪些竞品？有哪些排竞要求？（如A品牌a产品名；要求近一个月未发布相关竞品）"></textarea>
+        </div>
+      </div>
+
+      <div class="bottom-actions">
+        <button class="btn btn-ghost">取消</button>
+        <button class="btn btn-primary" onclick="goStep(2)">下一步</button>
+      </div>
+    </section>
+
+    <!-- ============ Step 2: 活动信息 ============ -->
+    <section class="step-view" id="step2">
+      <div class="form-card">
+        <div class="meta-row">
+          <div class="meta-item">
+            <span class="label">品牌</span>
+            <span class="value">Lancome 兰蔻</span>
+          </div>
+          <div class="meta-item">
+            <span class="label">Campaign周期</span>
+            <span class="value">2024-05-22 至 2024-07-30</span>
+          </div>
+        </div>
+        <hr class="meta-divider">
+
+        <div class="form-row">
+          <div class="field">
+            <span class="field-label">活动内容 *</span>
+            <input class="text-input" placeholder="请输入活动内容（例如：618大促活动）">
+          </div>
+          <div class="field">
+            <span class="field-label">KPI（多选） *</span>
+            <div class="select-wrap" id="kpiField" style="cursor:pointer;">
+              <input class="text-input" id="kpiInput" placeholder="CPM、CPC" readonly>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <span class="field-label">活动类型 *</span>
+            <div class="select-wrap">
+              <select class="text-input">
+                <option>Always On（日常种草）</option>
+                <option>Occasion（节日/特定场景）</option>
+                <option>Shopping Festival（大促）</option>
+                <option>New Launch（新品上市）</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">总预算 *</span>
+            <button type="button" class="budget-trigger" id="budgetTrigger" onclick="openBudgetModal()">
+              <span class="budget-amount" id="budgetTotalText">—</span>
+              <span class="budget-hint" id="budgetHintText">点击分配平台预算</span>
+              <svg class="budget-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="budget-breakdown" id="budgetBreakdown" style="display:none;">
+              <span class="budget-chip"><img src="assets/logo_xiaohongshu.png" alt=""><span class="b-name">小红书</span><b id="budgetXhsText">¥0</b></span>
+              <span class="budget-chip"><img src="assets/chip_douyin.png" alt=""><span class="b-name">抖音</span><b id="budgetDyText">¥0</b></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="audience-group">
+          <div class="section-heading">目标人群</div>
+          <div class="field">
+            <span class="field-label">画像 *</span>
+            <textarea class="text-area" placeholder="这款产品想卖给谁？聊聊TA的样子！（如：25-35岁的都市白领/有钱的轻熟龄脸女性/高知事业型独立女性）"></textarea>
+          </div>
+          <div class="field">
+            <span class="field-label">情境描述</span>
+            <textarea class="text-area" placeholder="希望内容带给TA什么样的共鸣与情绪！（如：悦己的仪式感/下班后的松弛治愈）"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-actions">
+        <button class="btn btn-outline" onclick="goStep(1)">上一步</button>
+        <button class="btn btn-primary" onclick="saveCampaign()">保存</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ KPI（多选）弹窗 ============ -->
+  <div class="kpi-modal-mask" id="kpiModalMask">
+    <div class="kpi-modal">
+      <div class="kpi-modal-head">
+        <span class="kpi-modal-title">KPI（多选）</span>
+        <button class="kpi-modal-close" id="kpiModalClose" aria-label="关闭">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div class="kpi-rows">
+        <div class="kpi-row" data-kpi="CPM">
+          <span class="kpi-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          <span class="kpi-name">CPM</span>
+        </div>
+        <div class="kpi-row" data-kpi="CPC">
+          <span class="kpi-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          <span class="kpi-name">CPC</span>
+        </div>
+        <div class="kpi-row off" data-kpi="CPE">
+          <span class="kpi-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          <span class="kpi-name">CPE</span>
+        </div>
+        <div class="kpi-row off" data-kpi="CPS">
+          <span class="kpi-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          <span class="kpi-name">CPS</span>
+        </div>
+      </div>
+      <div class="kpi-modal-foot">
+        <button class="btn-kpi-confirm" id="kpiModalConfirm">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 预算按平台分配 弹窗 ============ -->
+  <div class="modal-overlay hidden" id="budgetModal">
+    <div class="budget-modal" role="dialog" aria-modal="true">
+      <div class="budget-modal-header">
+        <span class="budget-modal-title">按平台分配预算</span>
+        <button class="budget-modal-close" id="budgetModalClose" aria-label="关闭">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div class="budget-rows">
+        <div class="budget-row">
+          <img class="platform-logo" src="assets/logo_xiaohongshu.png" alt="小红书">
+          <span class="platform-name">小红书</span>
+          <div class="budget-input-wrap"><span class="prefix">¥</span><input type="text" inputmode="numeric" id="budgetInputXhs" placeholder="0"></div>
+        </div>
+        <div class="budget-row">
+          <img class="platform-logo" src="assets/chip_douyin.png" alt="抖音">
+          <span class="platform-name">抖音</span>
+          <div class="budget-input-wrap"><span class="prefix">¥</span><input type="text" inputmode="numeric" id="budgetInputDy" placeholder="0"></div>
+        </div>
+      </div>
+      <div class="budget-total-row">
+        <span class="t-label">总预算（小红书 + 抖音）</span>
+        <span class="t-value" id="budgetModalTotal">¥0</span>
+      </div>
+      <div class="budget-modal-actions">
+        <button class="btn btn-ghost" id="budgetModalCancel">取消</button>
+        <button class="btn btn-primary" id="budgetModalConfirm">确认</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function showToast(msg) {
+    let t = document.getElementById('reqToast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'reqToast'; t.className = 'req-toast';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+  function goStep(n) {
+    // 注意：step1 是产品信息，与预算无关，不做预算校验；总预算必填校验在 step2 的「保存」
+    for (let i = 1; i <= 2; i++) {
+      document.getElementById('step' + i).classList.toggle('visible', i === n);
+      const pill = document.getElementById('pill' + i);
+      pill.classList.toggle('active', i === n);
+      pill.classList.toggle('completed', i < n);
+      // completed pill shows ✓ instead of icon + number
+      const icon = document.getElementById('pill' + i + 'Icon');
+      if (icon) icon.style.display = i < n ? 'none' : '';
+      pill.querySelector('.num').style.display = i < n ? 'none' : '';
+      if (i < n && !pill.querySelector('.check')) {
+        const c = document.createElement('span');
+        c.className = 'check';
+        c.textContent = '✓';
+        pill.insertBefore(c, pill.firstChild);
+      } else if (i >= n) {
+        pill.querySelector('.check')?.remove();
+      }
+    }
+    window.scrollTo({ top: 0 });
+  }
+
+  // ---------- 保存：总预算必填校验 ----------
+  function saveCampaign() {
+    const trig = document.getElementById('budgetTrigger');
+    const has = budgetAlloc.xhs !== null || budgetAlloc.dy !== null;
+    if (!has) {
+      trig.classList.add('error');
+      document.getElementById('budgetHintText').textContent = '请先分配平台预算';
+      trig.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      showToast('总预算为必填项，请先点击预算框分配平台预算');
+      return;
+    }
+    trig.classList.remove('error');
+    showToast('活动已保存');
+  }
+
+  // ---------- KPI（多选）弹窗 ----------
+  (function () {
+    const kpiMask = document.getElementById('kpiModalMask');
+    const kpiField = document.getElementById('kpiField');
+    const kpiInput = document.getElementById('kpiInput');
+    kpiField.addEventListener('click', () => kpiMask.classList.add('open'));
+    document.getElementById('kpiModalClose').addEventListener('click', () => kpiMask.classList.remove('open'));
+    kpiMask.addEventListener('click', e => { if (e.target === kpiMask) kpiMask.classList.remove('open'); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') kpiMask.classList.remove('open'); });
+    kpiMask.querySelectorAll('.kpi-row .kpi-check').forEach(chk => {
+      chk.addEventListener('click', () => {
+        chk.closest('.kpi-row').classList.toggle('off');
+      });
+    });
+    document.getElementById('kpiModalConfirm').addEventListener('click', () => {
+      const picked = [];
+      kpiMask.querySelectorAll('.kpi-row').forEach(row => {
+        if (!row.classList.contains('off')) picked.push(row.dataset.kpi);
+      });
+      kpiInput.value = picked.join('、');
+      kpiMask.classList.remove('open');
+    });
+  })();
+
+  // ---------- 总预算：按平台分配弹窗 ----------
+  const fmt = n => '¥' + n.toLocaleString('en-US');
+  const parseNum = v => {
+    const n = parseInt(String(v).replace(/[^\d]/g, ''), 10);
+    return isNaN(n) ? 0 : n;
+  };
+  let budgetAlloc = { xhs: null, dy: null };
+
+  const modal = document.getElementById('budgetModal');
+  const inXhs = document.getElementById('budgetInputXhs');
+  const inDy = document.getElementById('budgetInputDy');
+
+  function openBudgetModal() {
+    inXhs.value = budgetAlloc.xhs === null ? '' : budgetAlloc.xhs.toLocaleString('en-US');
+    inDy.value = budgetAlloc.dy === null ? '' : budgetAlloc.dy.toLocaleString('en-US');
+    updateModalTotal();
+    modal.classList.remove('hidden');
+  }
+  function closeBudgetModal() { modal.classList.add('hidden'); }
+
+  function updateModalTotal() {
+    document.getElementById('budgetModalTotal').textContent = fmt(parseNum(inXhs.value) + parseNum(inDy.value));
+  }
+  inXhs.addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/[^\d,]/g, '');
+    updateModalTotal();
+  });
+  inDy.addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/[^\d,]/g, '');
+    updateModalTotal();
+  });
+
+  function renderBudgetDisplay() {
+    const has = budgetAlloc.xhs !== null || budgetAlloc.dy !== null;
+    const totalText = document.getElementById('budgetTotalText');
+    const hintText = document.getElementById('budgetHintText');
+    const breakdown = document.getElementById('budgetBreakdown');
+    if (has) {
+      const total = (budgetAlloc.xhs || 0) + (budgetAlloc.dy || 0);
+      totalText.textContent = fmt(total);
+      totalText.classList.remove('empty');
+      hintText.textContent = '修改分配';
+      breakdown.style.display = 'flex';
+      document.getElementById('budgetXhsText').textContent = fmt(budgetAlloc.xhs || 0);
+      document.getElementById('budgetDyText').textContent = fmt(budgetAlloc.dy || 0);
+    } else {
+      totalText.textContent = '—';
+      totalText.classList.add('empty');
+      hintText.textContent = '点击分配平台预算';
+      breakdown.style.display = 'none';
+    }
+  }
+
+  document.getElementById('budgetModalConfirm').addEventListener('click', () => {
+    // parseNum 会把空串解析成 0，这里按原始输入判空：没填数字视为未分配，避免绕过必填校验
+    const digits = v => String(v).replace(/[^\d]/g, '');
+    const nx = digits(inXhs.value), nd = digits(inDy.value);
+    budgetAlloc = { xhs: nx === '' ? null : parseInt(nx, 10), dy: nd === '' ? null : parseInt(nd, 10) };
+    const hasValid = budgetAlloc.xhs !== null || budgetAlloc.dy !== null;
+    document.getElementById('budgetTrigger').classList.toggle('error', !hasValid);
+    if (!hasValid) document.getElementById('budgetHintText').textContent = '请先分配平台预算';
+    renderBudgetDisplay();
+    if (hasValid) closeBudgetModal();
+  });
+  document.getElementById('budgetModalCancel').addEventListener('click', closeBudgetModal);
+  document.getElementById('budgetModalClose').addEventListener('click', closeBudgetModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeBudgetModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeBudgetModal(); });
+</script>
+</body>
+</html>

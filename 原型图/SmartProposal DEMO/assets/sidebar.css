@@ -1,0 +1,216 @@
+/* ===== Smart Proposal 侧边栏（生产环境样式 · 展开 220px / 折叠 56px） ===== */
+.sidebar a { text-decoration: none; }
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 16px 20px;
+  background: #FFFFFF;
+  border-right: 1px solid #EFEFF4;
+  border-radius: 0;
+  box-shadow: none;
+  z-index: 20;
+  transition: width 0.25s ease, padding 0.25s ease;
+  overflow: hidden;
+}
+.sidebar > * { position: relative; }
+
+/* ---------- Logo ---------- */
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+.logo-icon {
+  position: static;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #FF3B70;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 6px 14px -2px rgba(255, 59, 112, 0.55);
+}
+.logo-text {
+  font-size: 19px;
+  font-weight: 800;
+  color: #1F1224;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+}
+
+/* ---------- 导航分组 ---------- */
+.nav-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.nav-group-head {
+  width: 100%;
+  height: 45px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.nav-group-head .g-icon { color: #6B7280; flex-shrink: 0; }
+.nav-group-head .g-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.nav-group-head .g-chev {
+  color: #9CA3AF;
+  flex-shrink: 0;
+  transition: transform 0.25s ease;
+}
+.nav-group.open > .nav-group-head .g-chev { transform: rotate(180deg); }
+.nav-group-head.active { background: #FFF0F4; border-color: #FF3B70; }
+.nav-group-head.active .g-icon { color: #FF3B70; }
+.nav-group-head.active .g-label { color: #FF3B70; font-weight: 600; }
+.nav-group-head.active .g-chev { color: #FF3B70; }
+
+.nav-children {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.nav-group.open > .nav-children { display: flex; }
+.nav-child {
+  width: 100%;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px 0 20px;
+  border-radius: 12px;
+  background: #FFFFFF;
+  border: 1px solid transparent;
+  font-size: 15px;
+  font-weight: 500;
+  color: #374151;
+  transition: background 0.15s ease;
+}
+.nav-child svg { color: #6B7280; flex-shrink: 0; }
+.nav-child span { white-space: nowrap; overflow: hidden; }
+.nav-child:hover { background: #FFF0F4; }
+.nav-child.active { border-color: #FF3B70; }
+.nav-child.active svg { color: #FF3B70; }
+.nav-child.active span { color: #FF3B70; font-weight: 600; }
+
+/* ---------- 底部：折叠按钮 + 用户 ---------- */
+.sidebar-bottom {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  flex-shrink: 0;
+}
+.sidebar-toggle {
+  position: static;
+  align-self: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 18px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6B7280;
+  cursor: pointer;
+}
+.sidebar-toggle svg { transition: transform 0.25s ease; }
+
+.user-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 4px;
+}
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  background: #F3F4F6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9CA3AF;
+  flex-shrink: 0;
+}
+.user-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1F1224;
+  white-space: nowrap;
+}
+.user-logout {
+  background: none;
+  border: none;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  color: #6B7280;
+  cursor: pointer;
+}
+
+/* ---------- 折叠态 ---------- */
+html.sb-collapsed .sidebar {
+  width: 56px;
+  padding: 16px 8px;
+  align-items: center;
+  gap: 24px;
+}
+html.sb-collapsed .logo-container { justify-content: center; padding: 0; }
+html.sb-collapsed .logo-text,
+html.sb-collapsed .g-label,
+html.sb-collapsed .g-chev,
+html.sb-collapsed .user-name { display: none; }
+html.sb-collapsed .nav-groups { width: 40px; }
+html.sb-collapsed .nav-group { gap: 8px; }
+html.sb-collapsed .nav-group-head {
+  width: 40px;
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+  border-radius: 12px;
+}
+html.sb-collapsed .nav-children { display: none !important; }
+html.sb-collapsed .nav-group-head.active { background: #FFF0F4; border-color: #FF3B70; }
+html.sb-collapsed .user-row { flex-direction: column; gap: 8px; padding: 0; }

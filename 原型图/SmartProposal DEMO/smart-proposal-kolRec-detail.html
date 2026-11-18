@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 选人 结果页 - v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #fff; }
+  body {
+    font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-size: 14px;
+    background: var(--bg-root, #F6F6F8);
+    color: #1F1F24;
+  }
+  .page {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    background: #FFFFFF;
+  }
+  .tinted::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('assets/hero-model.png') center / cover no-repeat;
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .tinted > * { position: relative; z-index: 1; }
+
+  /* ---------- Split view ---------- */
+  .split-view {
+    position: absolute;
+    left: 0; top: 23px;
+    width: 100%;
+    height: calc(100vh - 23px);
+    background: #F6F6F8;
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+  }
+  .split-view .sidebar { height: 100%; }
+
+  /* ---------- Main panels ---------- */
+  .main-panels { display: flex; flex: 1; min-width: 0; }
+
+  /* ---------- List panel ---------- */
+  .list-panel {
+    width: 320px;
+    height: 100%;
+    overflow-y: auto;
+    background: #FFFFFF;
+    border: 1px solid #F1F1F4;
+    border-left: none;
+    position: relative;
+    flex: none;
+  }
+  .task-context { position: absolute; left: 20px; top: 20px; width: 280px; }
+  .ctx-campaign { font-size: 14px; font-weight: 700; color: #1F1F24; }
+  .ctx-angle { font-size: 12px; color: #6E6E77; margin-top: 6px; line-height: 1.5; }
+  .ctx-angle b { color: #FF4D6A; font-weight: 600; }
+  .list-header { position: absolute; left: 20px; top: 76px; width: 280px; height: 27px; }
+  .list-header h2 { font-size: 16px; font-weight: 700; color: #1F1F24; position: absolute; left: 0; top: 4px; }
+  .chip-platform {
+    position: absolute; left: auto; right: 0; top: 0;
+    width: 60px; height: 27px;
+    background: #FF4D6A;
+    border-radius: 16px;
+    color: #FFFFFF; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .action-toolbar { position: absolute; left: 20px; top: 123px; width: 280px; height: 64px; }
+  .btn-edit-square {
+    position: absolute; left: 0; top: 18px;
+    min-width: 88px; height: 28px;
+    padding: 0 16px;
+    background: #FF0000;
+    border-radius: 16px;
+    color: #FFFFFF; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .btn-lookalike {
+    position: absolute; left: 96px; top: 18.5px;
+    width: 104px; height: 27px;
+    background: #FF0000;
+    border-radius: 16px;
+    color: #FFFFFF; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .kpi-panel {
+    position: absolute; left: 20px; top: 207px; width: 280px; height: 178px;
+    background: linear-gradient(180deg, #FFF4F7 0%, #FFFFFF 92%);
+    border: 1px solid #F7DCE4;
+    border-radius: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    overflow: hidden;
+  }
+  .kpi-cell { padding: 0 14px; display: flex; flex-direction: column; justify-content: center; gap: 7px; min-width: 0; }
+  .kpi-cell:nth-child(odd) { border-right: 1px solid #F5E3E8; }
+  .kpi-cell:nth-child(-n+2) { border-bottom: 1px solid #F5E3E8; }
+  .kpi-cell .kpi-label { font-size: 11px; font-weight: 400; color: #86909C; white-space: nowrap; }
+  .kpi-num { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 3px; row-gap: 2px; font-size: 18px; font-weight: 700; color: #1F1F24; line-height: 1.1; }
+  .kpi-num.kpi-num-sm { font-size: 16px; }
+  .kpi-num .kpi-total { font-size: 10px; font-weight: 500; color: #9CA3AF; white-space: nowrap; }
+  .kpi-bar { width: 100%; height: 4px; border-radius: 2px; background: #F7E3E9; overflow: hidden; }
+  .kpi-bar i { display: block; height: 100%; border-radius: 2px; background: linear-gradient(90deg, #FF7A9C, #FF3B70); }
+
+  .kol-stack { position: absolute; left: 20px; top: 405px; width: 280px; }
+  .kol-row {
+    width: 280px; height: 68px;
+    border-radius: 12px;
+    background: #FFFFFF;
+    border: 1px solid #F1F1F4;
+    margin-bottom: 12px;
+    position: relative;
+    cursor: pointer;
+  }
+  .kol-row.selected { background: #FFF0F3; border-color: #FFD2DA; }
+  .kol-inner { position: absolute; left: 16px; top: 16px; width: 248px; height: 36px; display: flex; align-items: center; }
+  .checkbox { width: 20px; height: 20px; border-radius: 10px; flex: none; }
+  .checkbox.unchecked { background: #FFFFFF; border: 1.5px solid #D1D1D6; }
+  .checkbox.checked { background: #FF4D6A; display: flex; align-items: center; justify-content: center; }
+  .checkbox.crossed { background: #C9C9CE; display: flex; align-items: center; justify-content: center; }
+  .kol-avatar { width: 36px; height: 36px; border-radius: 50%; margin-left: 8px; object-fit: cover; flex: none; }
+  .kol-name { font-size: 15px; font-weight: 700; color: #1F1F24; margin-left: 8px; }
+  .list-navigation { position: absolute; left: 20px; top: 813px; width: 280px; height: 43px; }
+  .btn-more {
+    position: absolute; left: 88px; top: 16px;
+    width: 104px; height: 27px;
+    background: #FF0000;
+    border-radius: 16px;
+    color: #FFFFFF; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+
+  /* ---------- Detail panel ---------- */
+  .detail-panel {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    background: #FFFFFF;
+    position: relative;
+  }
+  .scroll-spacer { position: absolute; left: 0; top: 1520px; width: 1px; height: 1px; }
+  .profile-header { position: absolute; left: 32px; right: 32px; top: 32px; height: 96px; display: flex; align-items: center; }
+  .large-avatar { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; flex: none; }
+  .profile-name-block { display: flex; align-items: center; margin-left: 16px; }
+  .profile-name { font-size: 34px; font-weight: 700; color: #1F1F24; }
+  .tier-badge {
+    width: 84px; height: 35px;
+    background: #FFF0F3;
+    border-radius: 4px;
+    color: #FF4D6A; font-size: 24px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    margin-left: 8px;
+  }
+  .btn-homepage {
+    margin-left: auto;
+    height: 32px;
+    padding: 0 20px;
+    background: #FFFFFF;
+    border: 1px solid #FF4D6A;
+    border-radius: 999px;
+    color: #FF4D6A; font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+
+  .detail-kpi-row { position: absolute; left: 32px; right: 32px; display: flex; gap: 12px; }
+  .detail-kpi {
+    flex: 1;
+    min-width: 0;
+    background: #FFFFFF;
+    border: 1px solid #E5E5EB;
+    border-radius: 8px;
+    text-align: center;
+    padding-top: 16px;
+    height: 103px;
+  }
+  .detail-kpi.short { height: 102px; }
+  .detail-kpi-label { font-size: 11px; font-weight: 400; color: #73737A; letter-spacing: 0.2px; }
+  .detail-kpi-value { font-size: 28px; font-weight: 600; color: #1A1A1F; margin-top: 6px; }
+  .detail-kpi-sub { font-size: 10px; font-weight: 400; margin-top: 6px; }
+  .sub-green { color: #34C759; }
+  .sub-red { color: #FF383C; }
+
+  /* price card */
+  .detail-kpi.price { padding-top: 16px; }
+  .price-columns { display: flex; justify-content: center; gap: 26px; margin-top: 6px; }
+  .price-col { text-align: center; }
+  .price-col-label { font-size: 10px; color: #73737A; }
+  .price-col-value { font-size: 14px; font-weight: 700; color: #1F1F24; margin-top: 2px; }
+
+  /* works section */
+  .works-section { position: absolute; left: 32px; right: 32px; top: 417px; }
+  .sponsored-section { position: absolute; left: 32px; right: 32px; top: 1063px; }
+  .section-head { display: flex; align-items: center; height: 19px; }
+  .section-bar { width: 4px; height: 16px; background: #FF4D6A; border-radius: 2px; margin-right: 12px; }
+  .section-title { font-size: 16px; font-weight: 700; color: #1F1F24; }
+  .works-grid {
+    margin-top: 35px;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    column-gap: 16px;
+    row-gap: 20px;
+  }
+  .work-card { border-radius: 8px; min-width: 0; }
+  .thumbnail-wrapper { position: relative; width: 100%; height: 190px; border-radius: 8px; overflow: hidden; }
+  .thumbnail { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 8px; }
+  .badge-hot {
+    position: absolute; right: 6px; bottom: 6px;
+    width: 24px; height: 24px;
+    background: #FF3B70;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    color: #FFFFFF;
+    box-shadow: 0 2px 6px rgba(255, 59, 112, 0.35);
+  }
+  .badge-hot svg { width: 13px; height: 13px; }
+  .title-row { display: flex; align-items: flex-start; margin-top: 8px; height: 19px; }
+  .work-title { font-size: 12px; font-weight: 500; color: #1A1A1A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge-lan {
+    flex: none;
+    width: 39px; height: 19px;
+    background: #FF3B70;
+    border-radius: 4px;
+    color: #FFD2DA; font-size: 11px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    margin-left: auto;
+  }
+  .work-date { font-size: 11px; font-weight: 400; color: #9A9A8A; margin-top: 3px; }
+  .stats-row { display: flex; align-items: center; margin-top: 5px; gap: 6px; font-size: 11px; color: #9A9A8A; }
+  .stat-item { display: flex; align-items: center; gap: 3px; }
+  .stat-item svg { flex: none; }
+
+  /* feedback buttons（在底部工具栏内） */
+  .btn-feedback-primary {
+    margin-left: 28px;
+    height: 40px; padding: 0 26px;
+    background: #FF0000;
+    border-radius: 99px;
+    color: #FFFFFF; font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex: none;
+  }
+  .btn-feedback-secondary {
+    height: 40px; padding: 0 26px;
+    background: rgba(120, 128, 128, 0.16);
+    border-radius: 99px;
+    color: #1F1F24; font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex: none;
+  }
+
+  /* confirm bar */
+  .confirm-bar {
+    position: fixed;
+    /* 居中胶囊：在右侧详情面板区域内水平居中，宽度随内容自适应
+       详情面板起点 = 侧栏220 + 列表320 = 540，面板中心 = 50vw + 270px */
+    left: calc(50vw + 270px);
+    transform: translateX(-50%);
+    bottom: 24px;
+    width: max-content; max-width: calc(100vw - 48px);
+    height: 68px;
+    background:
+      linear-gradient(0deg, rgba(255, 59, 112, 0.08), rgba(255, 59, 112, 0.08)),
+      rgba(255, 255, 255, 0.92);
+    border: 1px solid #FFFFFF;
+    border-radius: 100px;
+    display: flex; align-items: center;
+    padding: 0 16px 0 20px;
+    box-shadow: 0 8px 32px rgba(31, 16, 53, 0.16);
+    z-index: 50;
+  }
+  .bar-group { display: flex; align-items: center; }
+  .bar-current { flex: none; gap: 12px; }
+  .bar-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex: none; }
+  .bar-kol-name { font-size: 14px; font-weight: 700; color: #1F1F24; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+  .bar-divider { width: 1px; height: 36px; background: rgba(255, 77, 106, 0.25); margin: 0 20px; flex: none; }
+  .bar-task { gap: 20px; }
+  .confirm-info { display: flex; align-items: baseline; }
+  .confirm-count { font-size: 15px; font-weight: 700; color: #000000; white-space: nowrap; }
+  .confirm-amount { font-size: 13px; font-weight: 400; color: #000000; margin-left: 10px; }
+  .confirm-next {
+    margin-left: 0;
+    min-width: 79px;
+    padding: 0 20px;
+    height: 36px;
+    background: #FF0000;
+    border: 1px solid #FFFFFF;
+    border-radius: 99px;
+    color: #FFFFFF; font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+
+  /* ---------- 窄屏压缩（<1440 视口下保持与其他页一致的流式体验，无横向滚动） ---------- */
+  @media (max-width: 1439px) {
+    .list-panel { width: 280px; }
+    .stat-item:nth-child(3) { display: none; }
+    .task-context, .list-header, .kpi-row, .kol-stack, .list-navigation { width: 240px; }
+    .list-header h2 { font-size: 15px; }
+    .action-toolbar { width: 240px; }
+    .kpi-panel { width: 240px; }
+    .kpi-cell { padding: 0 12px; }
+    .kpi-num { font-size: 17px; }
+    .kol-row { width: 240px; }
+    .kol-inner { width: auto; right: 12px; }
+    .btn-more { left: 68px; }
+    .confirm-bar { left: calc(50vw + 250px); padding: 0 16px 0 20px; }
+    .confirm-amount { display: none; }
+    .btn-feedback-primary { margin-left: 12px; padding: 0 16px; }
+    .btn-feedback-secondary { padding: 0 16px; }
+    .detail-kpi-value { font-size: 22px; }
+    .price-columns { gap: 8px; }
+    .profile-name { font-size: 28px; }
+  }
+  @media (max-width: 1100px) {
+    .bar-avatar, .bar-kol-name { display: none; }
+  }
+  html.sb-collapsed .confirm-bar { left: calc(50vw + 188px); }
+  @media (max-width: 1439px) {
+    html.sb-collapsed .confirm-bar { left: calc(50vw + 168px); }
+  }
+</style>
+  <script>try{if(localStorage.getItem('spSidebarCollapsed')==='1')document.documentElement.classList.add('sb-collapsed')}catch(e){}</script>
+  <link rel="stylesheet" href="assets/sidebar.css">
+  <script src="assets/sidebar.js" defer></script>
+</head>
+<body>
+<div class="page tinted">
+  <div class="split-view">
+
+    <!-- ===== Icon sidebar ===== -->
+  <aside class="sidebar">
+    <div class="logo-container">
+      <div class="logo-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+      <div class="logo-text">Smart Proposal</div>
+    </div>
+
+    <nav class="nav-groups">
+      <div class="nav-group">
+        <button class="nav-group-head" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></span>
+          <span class="g-label">活动管理</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-campaign-list.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+            <span>活动列表</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-campaign-create.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            <span>创建活动</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-campaign-empty.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+            <span>活动列表（空状态）</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-precheck-submit-records.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+            <span>提交记录</span>
+          </a>
+        </div>
+      </div>
+      <div class="nav-group open">
+        <button class="nav-group-head active" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg></span>
+          <span class="g-label">选人任务</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-task-list.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z"/></svg>
+            <span>活动详情（任务列表）</span>
+          </a>
+          <a class="nav-child active" href="smart-proposal-kolRec-detail.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.7L19.6 10l-5.7 1.9L12 17.6l-1.9-5.7L4.4 10l5.7-1.3L12 3Z"/><path d="M19 15l.9 2.6L22.5 18.5l-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9L19 15Z"/></svg>
+            <span>AI 选人结果</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-tier.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1 14h6"/><path d="M9 8h6"/><path d="M17 16h6"/></svg>
+            <span>圈选总览 By Tier</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-talking-angle.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1 14h6"/><path d="M9 8h6"/><path d="M17 16h6"/></svg>
+            <span>圈选总览 By Talking Angle</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-tier-confirm.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.1V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            <span>名单确认</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-tier-confirmed.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.1V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            <span>名单确认（已确认）</span>
+          </a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <button class="nav-group-head" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg></span>
+          <span class="g-label">Pre-Check</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-precheck-query.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="m21 21-4.3-4.3"/></svg>
+            <span>Pre-Check 查询</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-precheck-history.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"/><path d="M12 6v6l4 2"/></svg>
+            <span>Pre-Check 历史</span>
+          </a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <button class="nav-group-head" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><path d="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></span>
+          <span class="g-label">Alert List</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-alert-list.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1Z"/></svg>
+            <span>Alert List</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-alert-list-dialog.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+            <span>状态变更确认</span>
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <button class="sidebar-toggle" aria-label="收起侧边栏">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <div class="user-row">
+        <div class="user-avatar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><path d="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></div>
+        <span class="user-name">Raven.Cai</span>
+        <button class="user-logout" aria-label="退出登录"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><path d="M12 2v10"/></svg></button>
+      </div>
+    </div>
+  </aside>
+
+    <!-- ===== Main panels ===== -->
+    <div class="main-panels">
+
+      <!-- List panel -->
+      <div class="list-panel">
+        <div class="task-context">
+          <div class="ctx-campaign">618 大促（618 campaign）</div>
+          <div class="ctx-angle"><b>Talking Angle：</b>清透通勤妆容分享 · 轻熟龄职场视角</div>
+        </div>
+        <div class="list-header">
+          <h2>为您推荐 15 位 KOL</h2>
+          <img class="chip-platform" src="assets/logo_xiaohongshu.png" alt="小红书" style="background: none; width: auto; height: 12px; top: 7px; object-fit: contain;">
+        </div>
+
+        <div class="action-toolbar">
+          <div class="btn-edit-square">返回编辑</div>
+          <div class="btn-lookalike">人群Lookalike</div>
+        </div>
+
+        <div class="kpi-panel">
+          <div class="kpi-cell">
+            <div class="kpi-label">圈人数量</div>
+            <div class="kpi-num">2<span class="kpi-total">/ 10</span></div>
+            <div class="kpi-bar"><i style="width:20%"></i></div>
+          </div>
+          <div class="kpi-cell">
+            <div class="kpi-label">预算完成数</div>
+            <div class="kpi-num kpi-num-sm">¥20,000<span class="kpi-total">/ 80,000</span></div>
+            <div class="kpi-bar"><i style="width:25%"></i></div>
+          </div>
+          <div class="kpi-cell">
+            <div class="kpi-label">预估阅读/播放</div>
+            <div class="kpi-num">60,000</div>
+          </div>
+          <div class="kpi-cell">
+            <div class="kpi-label">预估搜索</div>
+            <div class="kpi-num">3,000</div>
+          </div>
+        </div>
+
+        <div class="kol-stack">
+          <div class="kol-row selected">
+            <div class="kol-inner">
+              <div class="checkbox checked">
+                <svg width="12" height="10" viewBox="0 0 12 10" fill="none"><path d="M1.5 5l3 3 6-6.5" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <img class="kol-avatar" src="assets/kol2_msding.jpg" alt="Ms_Ding">
+              <span class="kol-name">Ms_Ding</span>
+            </div>
+          </div>
+          <div class="kol-row">
+            <div class="kol-inner">
+              <div class="checkbox checked">
+                <svg width="12" height="10" viewBox="0 0 12 10" fill="none"><path d="M1.5 5l3 3 6-6.5" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <img class="kol-avatar" src="assets/kol2_ran.jpg" alt="测评Ran">
+              <span class="kol-name">测评Ran</span>
+            </div>
+          </div>
+          <div class="kol-row">
+            <div class="kol-inner">
+              <div class="checkbox crossed">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/></svg>
+              </div>
+              <img class="kol-avatar" src="assets/kol2_piaope.jpg" alt="Piaopé">
+              <span class="kol-name">Piaopé</span>
+            </div>
+          </div>
+          <div class="kol-row">
+            <div class="kol-inner">
+              <div class="checkbox unchecked"></div>
+              <img class="kol-avatar" src="assets/kol2_liu.jpg" alt="小刘同学">
+              <span class="kol-name">小刘同学</span>
+            </div>
+          </div>
+          <div class="kol-row">
+            <div class="kol-inner">
+              <div class="checkbox unchecked"></div>
+              <img class="kol-avatar" src="assets/kol2_sucai.jpg" alt="素材小于">
+              <span class="kol-name">素材小于</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="list-navigation">
+          <div class="btn-more">换一轮</div>
+        </div>
+      </div>
+
+      <!-- Detail panel -->
+      <div class="detail-panel">
+        <div class="profile-header">
+          <img class="large-avatar" id="dAvatar" src="assets/kol2_large.jpg" alt="Ms_Ding">
+          <div class="profile-name-block">
+            <span class="profile-name" id="dName">Ms_Ding</span>
+            <span class="tier-badge" id="dTier">Tier 3</span>
+          </div>
+          <div class="btn-homepage">主页</div>
+        </div>
+
+        <!-- KPI row 1 -->
+        <div class="detail-kpi-row" style="top:156px;">
+          <div class="detail-kpi">
+            <div class="detail-kpi-label">FOLLOWERS</div>
+            <div class="detail-kpi-value" id="vFollowers">2.4M</div>
+          </div>
+          <div class="detail-kpi">
+            <div class="detail-kpi-label">CPC</div>
+            <div class="detail-kpi-value" id="vCpc">0.8</div>
+            <div class="detail-kpi-sub sub-green" id="sCpc">基准 0.53&nbsp; ↑高27.8%</div>
+          </div>
+          <div class="detail-kpi">
+            <div class="detail-kpi-label">CPE</div>
+            <div class="detail-kpi-value" id="vCpe">12.3</div>
+            <div class="detail-kpi-sub sub-red" id="sCpe">比品牌均值高5.8%</div>
+          </div>
+          <div class="detail-kpi">
+            <div class="detail-kpi-label">CPS</div>
+            <div class="detail-kpi-value" id="vCps">92</div>
+            <div class="detail-kpi-sub sub-green" id="sCps">比品牌均值高27.8%</div>
+          </div>
+        </div>
+
+        <!-- KPI row 2 -->
+        <div class="detail-kpi-row" style="top:287px;">
+          <div class="detail-kpi short price">
+            <div class="detail-kpi-label">刊例价</div>
+            <div class="price-columns">
+              <div class="price-col">
+                <div class="price-col-label">视频</div>
+                <div class="price-col-value" id="vPriceVideo">¥18,000</div>
+              </div>
+              <div class="price-col">
+                <div class="price-col-label">图文</div>
+                <div class="price-col-value" id="vPricePic">¥18,000</div>
+              </div>
+            </div>
+          </div>
+          <div class="detail-kpi short">
+            <div class="detail-kpi-label">AVG. CLICK</div>
+            <div class="detail-kpi-value" id="vClick">0.8</div>
+          </div>
+          <div class="detail-kpi short">
+            <div class="detail-kpi-label">AVG. ENGAGEMENT</div>
+            <div class="detail-kpi-value" id="vEngagement">12.3</div>
+          </div>
+          <div class="detail-kpi short">
+            <div class="detail-kpi-label">AVG. SEARCH</div>
+            <div class="detail-kpi-value" id="vSearch">92</div>
+          </div>
+        </div>
+
+        <!-- Works section -->
+        <div class="works-section">
+          <div class="section-head">
+            <div class="section-bar"></div>
+            <span class="section-title">近期作品</span>
+          </div>
+          <div class="works-grid" id="worksGrid"></div>
+        </div>
+
+        <!-- Sponsored section -->
+        <div class="sponsored-section">
+          <div class="section-head">
+            <div class="section-bar"></div>
+            <span class="section-title">近期商单</span>
+          </div>
+          <div class="works-grid" id="sponsoredGrid"></div>
+        </div>
+        <div class="scroll-spacer"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Confirm bar -->
+  <div class="confirm-bar">
+    <!-- 左段：当前 KOL 的选择 -->
+    <div class="bar-group bar-current">
+      <img class="bar-avatar" id="barAvatar" src="assets/kol2_msding.jpg" alt="Ms_Ding">
+      <span class="bar-kol-name" id="barKolName">Ms_Ding</span>
+      <div class="btn-feedback-primary">符合，我想要</div>
+      <div class="btn-feedback-secondary">不符合预期</div>
+    </div>
+    <div class="bar-divider"></div>
+    <!-- 右段：本次任务选取情况 + 确认 -->
+    <div class="bar-group bar-task">
+      <div class="confirm-info">
+        <span class="confirm-count">已选择 2 位 KOL</span>
+        <span class="confirm-amount">预计总金额：30,000</span>
+      </div>
+      <div class="confirm-next">确认已选达人</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== Per-KOL demo data（左侧列表可点击切换，右侧详情随之更新） ===== */
+const KOLS = {
+  'Ms_Ding': {
+    avatar: 'assets/kol2_msding.jpg', tier: 'Tier 3', followers: '2.4M',
+    cpc: { v: '0.8', sub: '基准 0.53&nbsp; ↑高27.8%', cls: 'sub-green' },
+    cpe: { v: '12.3', sub: '比品牌均值高5.8%', cls: 'sub-red' },
+    cps: { v: '92', sub: '比品牌均值高27.8%', cls: 'sub-green' },
+    priceVideo: '¥18,000', pricePic: '¥18,000', click: '0.8', engagement: '12.3', search: '92',
+    works: [
+      { img: 'assets/work_01.jpg', title: 'ian灵感妆！完全韩系小猫妆', date: '2026-08-12', likes: '8,735', comments: '386', shares: '140', hot: true,  lan: false },
+      { img: 'assets/work_02.jpg', title: '最近被问的香水分享！舒适区...', date: '2026-08-11', likes: '4,413', comments: '1,643', shares: '140', hot: false, lan: false },
+      { img: 'assets/work_03.jpg', title: '久违的高铁沉浸式化妆（叶愷版...', date: '2026-08-09', likes: '1.34万', comments: '670', shares: '231', hot: false, lan: false },
+      { img: 'assets/work_04.jpg', title: '薄荷青！疑似农家女的觉醒', date: '2026-08-08', likes: '7,225', comments: '929', shares: '146', hot: false, lan: false },
+      { img: 'assets/work_05.jpg', title: '清透又有点人鱼姬的粉色系妆...', date: '2026-08-07', likes: '7,649', comments: '397', shares: '77',  hot: false, lan: true },
+      { img: 'assets/work_06.jpg', title: '与鲁同行之我在上海最走的生...', date: '2026-08-06', likes: '1.98万', comments: '670', shares: '478', hot: false, lan: false },
+      { img: 'assets/work_07.jpg', title: '素颜感妆容分享！清透自然', date: '2026-08-05', likes: '5,832', comments: '412', shares: '98',  hot: false, lan: false },
+      { img: 'assets/work_08.jpg', title: '七夕约会妆容推荐合集', date: '2026-08-04', likes: '1.2万', comments: '856', shares: '203', hot: true,  lan: false },
+      { img: 'assets/work_09.jpg', title: '夏日清爽穿搭一周合集', date: '2026-08-03', likes: '9,124', comments: '723', shares: '156', hot: false, lan: false },
+      { img: 'assets/work_10.jpg', title: '新入手的护肤好物开箱', date: '2026-08-02', likes: '6,437', comments: '534', shares: '112', hot: false, lan: true },
+      { img: 'assets/work_11.jpg', title: '日常通勤妆5分钟搞定', date: '2026-08-01', likes: '8,291', comments: '645', shares: '187', hot: false, lan: false },
+      { img: 'assets/work_12.jpg', title: '探店上海小众咖啡馆合集', date: '2026-07-31', likes: '1.56万', comments: '892', shares: '324', hot: false, lan: false },
+    ],
+  },
+  '测评Ran': {
+    avatar: 'assets/kol2_ran.jpg', tier: 'Tier 2', followers: '1.1M',
+    cpc: { v: '0.6', sub: '基准 0.53&nbsp; ↑高13.2%', cls: 'sub-green' },
+    cpe: { v: '9.8', sub: '比品牌均值低16.2%', cls: 'sub-green' },
+    cps: { v: '76', sub: '比品牌均值高5.4%', cls: 'sub-green' },
+    priceVideo: '¥12,000', pricePic: '¥9,800', click: '0.6', engagement: '9.8', search: '76',
+    works: [
+      { img: 'assets/work_03.jpg', title: '开架粉底液大横评！谁最值得买', date: '2026-08-10', likes: '1.2万', comments: '892', shares: '214', hot: true,  lan: false },
+      { img: 'assets/work_07.jpg', title: '百元内眼影盘实测合集', date: '2026-08-09', likes: '9,876', comments: '534', shares: '167', hot: false, lan: false },
+      { img: 'assets/work_01.jpg', title: '平价精华真实使用一个月效果', date: '2026-08-08', likes: '7,431', comments: '421', shares: '132', hot: false, lan: false },
+      { img: 'assets/work_05.jpg', title: '学生党气垫TOP5排行', date: '2026-08-07', likes: '6,942', comments: '388', shares: '121', hot: false, lan: false },
+      { img: 'assets/work_09.jpg', title: '油皮夏日定妆测评', date: '2026-08-06', likes: '8,215', comments: '467', shares: '143', hot: false, lan: false },
+      { img: 'assets/work_12.jpg', title: '网红咖啡机值不值得买', date: '2026-08-05', likes: '1.4万', comments: '763', shares: '289', hot: false, lan: false },
+      { img: 'assets/work_02.jpg', title: '新国货口红全色号试色', date: '2026-08-04', likes: '5,678', comments: '342', shares: '98',  hot: false, lan: false },
+      { img: 'assets/work_08.jpg', title: '七夕平价礼物开箱测评', date: '2026-08-03', likes: '1.1万', comments: '655', shares: '187', hot: true,  lan: false },
+      { img: 'assets/work_11.jpg', title: '通勤快干洗发水横评', date: '2026-08-02', likes: '4,932', comments: '287', shares: '84',  hot: false, lan: false },
+      { img: 'assets/work_04.jpg', title: '某大牌粉底平替实测', date: '2026-08-01', likes: '8,743', comments: '512', shares: '165', hot: false, lan: true },
+      { img: 'assets/work_06.jpg', title: '美容仪两个月使用报告（合作）', date: '2026-07-31', likes: '7,284', comments: '398', shares: '154', hot: false, lan: true },
+      { img: 'assets/work_10.jpg', title: '防晒霜年度测评大盘点', date: '2026-07-30', likes: '9,318', comments: '578', shares: '203', hot: false, lan: false },
+    ],
+  },
+  'Piaopé': {
+    avatar: 'assets/kol2_piaope.jpg', tier: 'Tier 1', followers: '3.8M',
+    cpc: { v: '1.2', sub: '比品牌均值高64.3%', cls: 'sub-red' },
+    cpe: { v: '15.6', sub: '比品牌均值高34.1%', cls: 'sub-red' },
+    cps: { v: '120', sub: '比品牌均值高64.3%', cls: 'sub-red' },
+    priceVideo: '¥28,000', pricePic: '¥22,000', click: '1.2', engagement: '15.6', search: '120',
+    works: [
+      { img: 'assets/work_01.jpg', title: '巴黎时装周妆容分享', date: '2026-08-10', likes: '2.3万', comments: '1,208', shares: '456', hot: true,  lan: false },
+      { img: 'assets/work_05.jpg', title: '高定礼服体验Vlog', date: '2026-08-09', likes: '1.8万', comments: '934', shares: '387', hot: false, lan: false },
+      { img: 'assets/work_09.jpg', title: '米兰街拍穿搭一周记录', date: '2026-08-08', likes: '1.5万', comments: '812', shares: '322', hot: false, lan: false },
+      { img: 'assets/work_02.jpg', title: '奢华酒店下午茶探店', date: '2026-08-07', likes: '1.2万', comments: '689', shares: '254', hot: false, lan: false },
+      { img: 'assets/work_07.jpg', title: '贵妇面霜一个月真实反馈', date: '2026-08-06', likes: '9,864', comments: '542', shares: '198', hot: false, lan: false },
+      { img: 'assets/work_11.jpg', title: '机场穿搭与长途飞行护肤', date: '2026-08-05', likes: '1.1万', comments: '601', shares: '233', hot: false, lan: false },
+      { img: 'assets/work_03.jpg', title: '红色系新年妆氛围感教程', date: '2026-08-04', likes: '1.6万', comments: '877', shares: '341', hot: false, lan: false },
+      { img: 'assets/work_12.jpg', title: '上海外滩米其林晚餐记录', date: '2026-08-03', likes: '1.3万', comments: '724', shares: '298', hot: false, lan: false },
+      { img: 'assets/work_08.jpg', title: '约会高级感妆容分享', date: '2026-08-02', likes: '1.4万', comments: '795', shares: '305', hot: true,  lan: false },
+      { img: 'assets/work_04.jpg', title: '秋冬高珠配饰搭配指南', date: '2026-08-01', likes: '8,972', comments: '486', shares: '176', hot: false, lan: true },
+      { img: 'assets/work_06.jpg', title: '品牌香氛快闪店打卡（合作）', date: '2026-07-31', likes: '1.05万', comments: '563', shares: '221', hot: false, lan: true },
+      { img: 'assets/work_10.jpg', title: '抗老精华使用测评', date: '2026-07-30', likes: '9,241', comments: '517', shares: '189', hot: false, lan: false },
+    ],
+  },
+  '小刘同学': {
+    avatar: 'assets/kol2_liu.jpg', tier: 'Tier 4', followers: '560K',
+    cpc: { v: '0.9', sub: '比品牌均值高23.6%', cls: 'sub-red' },
+    cpe: { v: '11.2', sub: '比品牌均值低4.1%', cls: 'sub-green' },
+    cps: { v: '85', sub: '比品牌均值高17.9%', cls: 'sub-green' },
+    priceVideo: '¥8,000', pricePic: '¥6,500', click: '0.9', engagement: '11.2', search: '85',
+    works: [
+      { img: 'assets/work_11.jpg', title: '大学生通勤妆五分钟出门', date: '2026-08-10', likes: '6,214', comments: '342', shares: '96',  hot: false, lan: false },
+      { img: 'assets/work_09.jpg', title: '生活费1500一个月怎么花', date: '2026-08-09', likes: '1.2万', comments: '689', shares: '214', hot: true,  lan: false },
+      { img: 'assets/work_07.jpg', title: '平价好用的宿舍护肤流程', date: '2026-08-08', likes: '7,892', comments: '421', shares: '128', hot: false, lan: false },
+      { img: 'assets/work_02.jpg', title: '课间快速补妆小技巧', date: '2026-08-07', likes: '5,463', comments: '287', shares: '82',  hot: false, lan: false },
+      { img: 'assets/work_12.jpg', title: '校园周边美食探店合集', date: '2026-08-06', likes: '1.02万', comments: '564', shares: '187', hot: false, lan: false },
+      { img: 'assets/work_05.jpg', title: '开学季浅色系妆容分享', date: '2026-08-05', likes: '6,781', comments: '354', shares: '109', hot: false, lan: false },
+      { img: 'assets/work_10.jpg', title: '新生入学好物开箱', date: '2026-08-04', likes: '8,437', comments: '476', shares: '142', hot: true,  lan: false },
+      { img: 'assets/work_04.jpg', title: '考试周速成精致妆容', date: '2026-08-03', likes: '5,918', comments: '318', shares: '91',  hot: false, lan: false },
+      { img: 'assets/work_03.jpg', title: '地铁上化妆挑战', date: '2026-08-02', likes: '9,647', comments: '523', shares: '168', hot: false, lan: false },
+      { img: 'assets/work_08.jpg', title: '毕业季拍照妆容教程', date: '2026-08-01', likes: '7,325', comments: '402', shares: '123', hot: false, lan: true },
+      { img: 'assets/work_01.jpg', title: '校园电台出镜妆（合作）', date: '2026-07-31', likes: '6,842', comments: '367', shares: '114', hot: false, lan: true },
+      { img: 'assets/work_06.jpg', title: '暑期实习通勤穿搭记录', date: '2026-07-30', likes: '8,136', comments: '449', shares: '139', hot: false, lan: false },
+    ],
+  },
+  '素材小于': {
+    avatar: 'assets/kol2_sucai.jpg', tier: 'Tier 5', followers: '210K',
+    cpc: { v: '1.4', sub: '比品牌均值高92.5%', cls: 'sub-red' },
+    cpe: { v: '18.9', sub: '比品牌均值高61.6%', cls: 'sub-red' },
+    cps: { v: '135', sub: '比品牌均值高82.4%', cls: 'sub-red' },
+    priceVideo: '¥5,000', pricePic: '¥4,200', click: '1.4', engagement: '18.9', search: '135',
+    works: [
+      { img: 'assets/work_03.jpg', title: '高级感转场剪辑教程', date: '2026-08-10', likes: '1.1万', comments: '592', shares: '231', hot: false, lan: false },
+      { img: 'assets/work_06.jpg', title: '氛围感视频调色参数分享', date: '2026-08-09', likes: '9,843', comments: '517', shares: '196', hot: true,  lan: false },
+      { img: 'assets/work_01.jpg', title: '混剪素材：城市光影合集', date: '2026-08-08', likes: '8,264', comments: '431', shares: '178', hot: false, lan: false },
+      { img: 'assets/work_11.jpg', title: '一条vlog的完整幕后流程', date: '2026-08-07', likes: '7,518', comments: '389', shares: '145', hot: false, lan: false },
+      { img: 'assets/work_09.jpg', title: '运动相机拍摄技巧实测', date: '2026-08-06', likes: '6,932', comments: '354', shares: '122', hot: false, lan: false },
+      { img: 'assets/work_02.jpg', title: '手机也能拍出电影感', date: '2026-08-05', likes: '1.3万', comments: '682', shares: '246', hot: true,  lan: false },
+      { img: 'assets/work_10.jpg', title: '剪辑软件效率插件测评', date: '2026-08-04', likes: '5,874', comments: '302', shares: '98',  hot: false, lan: false },
+      { img: 'assets/work_04.jpg', title: '复古胶片风调色教程', date: '2026-08-03', likes: '7,163', comments: '372', shares: '131', hot: false, lan: false },
+      { img: 'assets/work_12.jpg', title: '探店视频运镜拆解', date: '2026-08-02', likes: '8,529', comments: '445', shares: '162', hot: false, lan: false },
+      { img: 'assets/work_08.jpg', title: '节日主题短片幕后（合作）', date: '2026-08-01', likes: '7,486', comments: '391', shares: '148', hot: false, lan: true },
+      { img: 'assets/work_07.jpg', title: '慢动作拍摄参数总结（合作）', date: '2026-07-31', likes: '6,214', comments: '328', shares: '117', hot: false, lan: true },
+      { img: 'assets/work_05.jpg', title: '人像光位布光基础', date: '2026-07-30', likes: '9,127', comments: '478', shares: '173', hot: false, lan: false },
+    ],
+  },
+};
+const heartSvg = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 11.3C6.5 11.3 1.3 8.4 1.3 4.7a3 3 0 015.2-2 3 3 0 015.2 2c0 3.7-5.2 6.6-5.2 6.6z" stroke="#9A9A8A" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+const commentSvg = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M11.4 6.5a4.9 4.9 0 01-4.9 4.9c-.9 0-1.8-.2-2.5-.7l-2.4.6.6-2.4a4.9 4.9 0 116.8-5.4c1.4.8 2.4 1.7 2.4 3z" stroke="#9A9A8A" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+const shareSvg = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="10" cy="2.7" r="1.6" stroke="#9A9A8A" stroke-width="1.4"/><circle cx="2.9" cy="6.5" r="1.6" stroke="#9A9A8A" stroke-width="1.4"/><circle cx="10" cy="10.3" r="1.6" stroke="#9A9A8A" stroke-width="1.4"/><path d="M4.4 5.7l4.1-2.2M4.4 7.3l4.1 2.2" stroke="#9A9A8A" stroke-width="1.4"/></svg>';
+const cardHtml = w => `
+  <div class="work-card">
+    <div class="thumbnail-wrapper">
+      <img class="thumbnail" src="${w.img}" alt="${w.title}">
+      ${w.hot ? '<div class="badge-hot"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13.5 0.67s0.74 2.65 0.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l0.03-0.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5 0.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-0.36 3.6-1.21 4.62-2.58 0.39 1.29 0.59 2.65 0.59 4.04 0 2.65-2.15 4.8-4.8 4.8z"/></svg></div>' : ''}
+    </div>
+    <div class="title-row">
+      <span class="work-title">${w.title}</span>
+      ${w.lan ? '<span class="badge-lan">LAN</span>' : ''}
+    </div>
+    <div class="work-date">${w.date}</div>
+    <div class="stats-row">
+      <span class="stat-item">${heartSvg}${w.likes}</span>
+      <span class="stat-item">${commentSvg}${w.comments}</span>
+      <span class="stat-item">${shareSvg}${w.shares}</span>
+    </div>
+  </div>
+`;
+const $ = id => document.getElementById(id);
+function renderDetail(name) {
+  const k = KOLS[name];
+  if (!k) return;
+  $('dAvatar').src = k.avatar;
+  $('dAvatar').alt = name;
+  $('dName').textContent = name;
+  $('dTier').textContent = k.tier;
+  $('vFollowers').textContent = k.followers;
+  $('vCpc').textContent = k.cpc.v;
+  $('sCpc').innerHTML = k.cpc.sub; $('sCpc').className = 'detail-kpi-sub ' + k.cpc.cls;
+  $('vCpe').textContent = k.cpe.v;
+  $('sCpe').innerHTML = k.cpe.sub; $('sCpe').className = 'detail-kpi-sub ' + k.cpe.cls;
+  $('vCps').textContent = k.cps.v;
+  $('sCps').innerHTML = k.cps.sub; $('sCps').className = 'detail-kpi-sub ' + k.cps.cls;
+  $('vPriceVideo').textContent = k.priceVideo;
+  $('vPricePic').textContent = k.pricePic;
+  $('vClick').textContent = k.click;
+  $('vEngagement').textContent = k.engagement;
+  $('vSearch').textContent = k.search;
+  $('worksGrid').innerHTML = k.works.filter(w => !w.lan).map(cardHtml).join('');
+  $('sponsoredGrid').innerHTML = k.works.filter(w => w.lan).map(cardHtml).join('');
+  updateBarKol(name);
+}
+document.querySelectorAll('.kol-row').forEach(row => {
+  row.addEventListener('click', () => {
+    document.querySelectorAll('.kol-row').forEach(r => r.classList.remove('selected'));
+    row.classList.add('selected');
+    renderDetail(row.querySelector('.kol-name').textContent.trim());
+  });
+});
+renderDetail('Ms_Ding');
+
+/* ===== 反馈按钮：符合→打勾 / 不符合→打叉，然后自动跳到下一个未选择的 KOL ===== */
+const tickSvg = '<svg width="12" height="10" viewBox="0 0 12 10" fill="none"><path d="M1.5 5l3 3 6-6.5" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const crossSvg = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/></svg>';
+function updateConfirmCount() {
+  const checked = document.querySelectorAll('.kol-stack .checkbox.checked').length;
+  document.querySelector('.confirm-count').textContent = '已选择 ' + checked + ' 位 KOL';
+}
+/* 底部工具栏左段：头像与姓名跟随当前查看的 KOL */
+function updateBarKol(name) {
+  document.getElementById('barAvatar').src = KOLS[name].avatar;
+  document.getElementById('barAvatar').alt = name;
+  document.getElementById('barKolName').textContent = name;
+}
+function nextUnselected() {
+  const rows = [...document.querySelectorAll('.kol-row')];
+  return rows.filter(r => r.querySelector('.checkbox').classList.contains('unchecked'));
+}
+function handleFeedback(accept) {
+  const current = document.querySelector('.kol-row.selected');
+  if (current) {
+    const cb = current.querySelector('.checkbox');
+    if (cb.classList.contains('unchecked')) {
+      cb.classList.remove('unchecked');
+      cb.classList.add(accept ? 'checked' : 'crossed');
+      cb.innerHTML = accept ? tickSvg : crossSvg;
+      updateConfirmCount();
+    }
+    updateBarKol(current.querySelector('.kol-name').textContent.trim());
+  }
+  const pending = nextUnselected();
+  if (pending.length) {
+    pending[0].click();
+  }
+}
+document.querySelector('.btn-feedback-primary').addEventListener('click', () => handleFeedback(true));
+document.querySelector('.btn-feedback-secondary').addEventListener('click', () => handleFeedback(false));
+updateConfirmCount();
+updateBarKol('Ms_Ding');
+</script>
+</body>
+</html>

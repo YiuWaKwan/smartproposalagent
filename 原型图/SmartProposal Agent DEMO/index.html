@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Proposal — Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pink: #FF3B70;
+    --pink-deep: #FF2D55;
+    --ink: #1F1035;
+    --muted: #9CA3AF;
+    --line-pink: #F0E4EC;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    color: var(--ink);
+    background: url('../SmartProposal DEMO/assets/hero-model.png') center / cover no-repeat fixed;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(180deg,
+      rgba(255, 205, 220, 0.25) 0%,
+      rgba(255, 160, 185, 0.45) 55%,
+      rgba(244, 130, 160, 0.72) 100%);
+    pointer-events: none;
+  }
+  body > * { position: relative; z-index: 1; }
+
+  /* ---------- Top-left chip ---------- */
+  .brand-chip {
+    position: absolute;
+    top: 28px; left: 36px;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    background: #FFFFFF;
+    box-shadow: 0 6px 18px rgba(255, 59, 112, 0.25);
+    color: var(--pink);
+    font-size: 15px; font-weight: 700;
+    cursor: pointer;
+    border: none;
+  }
+  .brand-chip .caret { font-size: 10px; }
+
+  /* ---------- Center column ---------- */
+  .stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    padding: 24px;
+  }
+  .hero-title {
+    font-size: clamp(40px, 5.4vw, 72px);
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    color: #FFFFFF;
+    text-shadow: 0 4px 24px rgba(31, 16, 53, 0.18);
+    text-align: center;
+  }
+
+  /* ---------- Agent dialog ---------- */
+  .agent-dialog {
+    width: 720px;
+    max-width: calc(100vw - 48px);
+    display: flex;
+    flex-direction: column;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+    border: 2px solid var(--pink);
+    box-shadow: 0 16px 48px rgba(255, 59, 112, 0.30);
+    overflow: hidden;
+  }
+  .agent-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line-pink);
+  }
+  .agent-avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--pink), #FF7A9C);
+    color: #fff; flex-shrink: 0;
+  }
+  .agent-name { font-size: 15px; font-weight: 700; color: var(--pink); }
+  .agent-status {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: #6B7280;
+  }
+  .agent-status .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #00B42A;
+  }
+  .agent-msgs {
+    padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 12px;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .bubble {
+    max-width: 82%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .bubble.agent {
+    align-self: flex-start;
+    background: #FFF0F4;
+    border: 1px solid var(--line-pink);
+    color: var(--ink);
+    border-top-left-radius: 4px;
+  }
+  .bubble.user {
+    align-self: flex-end;
+    background: var(--pink);
+    color: #FFFFFF;
+    border-top-right-radius: 4px;
+  }
+  .bubble.typing { color: var(--muted); font-style: italic; }
+  .agent-inputrow {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 20px 18px;
+  }
+  .agent-input {
+    flex: 1;
+    height: 46px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1px solid var(--line-pink);
+    background: #FCF8FA;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--ink);
+    outline: none;
+  }
+  .agent-input:focus { border-color: var(--pink); background: #fff; }
+  .btn-send {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 22px;
+    border: none; border-radius: 999px;
+    background: var(--pink-deep);
+    color: #FFFFFF;
+    font-size: 14px; font-weight: 700;
+    box-shadow: 0 8px 18px rgba(255, 59, 112, 0.45);
+    transition: filter .15s;
+  }
+  .btn-send:hover { filter: brightness(1.06); }
+
+  /* ---------- 5 quick entries ---------- */
+  .entries {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .entry {
+    width: 224px;
+    padding: 30px 0;
+    border: none;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.42);
+    backdrop-filter: blur(4px);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 21px; font-weight: 700;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s, background .15s;
+  }
+  .entry:hover { transform: translateY(-2px); background: rgba(255, 255, 255, 0.62); }
+  .entry.active {
+    background: #FFFFFF;
+    box-shadow: 0 10px 26px rgba(255, 59, 112, 0.28);
+  }
+
+  .toast {
+    position: fixed;
+    left: 50%; bottom: 36px;
+    transform: translateX(-50%) translateY(8px);
+    padding: 10px 20px;
+    border-radius: 999px;
+    background: rgba(31, 16, 53, 0.85);
+    color: #fff;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s, transform .25s;
+    z-index: 10;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+  <button class="brand-chip" onclick="fillInput('介绍一下 Smart Proposal')"><span class="caret">◂</span> Smart Social</button>
+
+  <div class="stage">
+    <div class="hero-title">SMART PROPOSAL</div>
+
+    <div class="agent-dialog">
+      <div class="agent-head">
+        <span class="agent-avatar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.1 5.6L20 9.7l-4.3 4 1 5.8L12 16.8l-4.7 2.7 1-5.8L4 9.7l5.9-2.1L12 2z"/></svg>
+        </span>
+        <span class="agent-name">Smart Proposal Agent</span>
+        <span class="agent-status"><span class="dot"></span>在线</span>
+      </div>
+      <div class="agent-msgs" id="msgs">
+        <div class="bubble agent">你好，我是 Smart Proposal Agent ✨ 我可以帮你完成达人推荐、活动策划、脚本撰写与效果复盘。点击下方入口，或直接告诉我你的需求。</div>
+      </div>
+      <div class="agent-inputrow">
+        <input class="agent-input" id="chatInput" placeholder="向 Agent 描述你的需求，例如：为一款抗初老精华推荐达人…" onkeydown="if(event.key==='Enter')send()">
+        <button class="btn-send" onclick="send()">发送
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 20.5l19-8.5L3 3.5 3 10l12 2-12 2z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="entries">
+      <button class="entry" onclick="pick(this, '帮我做本季美妆社媒洞察分析')">Insights</button>
+      <button class="entry" onclick="pick(this, '帮我起草一场新品发布的 Campaign Brief')">Brief</button>
+      <button class="entry active" onclick="location.href='proposal.html'">Proposal</button>
+      <button class="entry" onclick="pick(this, '为达人推荐生成内容脚本 Script')">Script</button>
+      <button class="entry" onclick="pick(this, '复盘上一次活动的投放效果 Review')">Review</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  const msgs = document.getElementById('msgs');
+  const input = document.getElementById('chatInput');
+
+  function bubble(cls, text) {
+    const el = document.createElement('div');
+    el.className = 'bubble ' + cls;
+    el.textContent = text;
+    msgs.appendChild(el);
+    msgs.scrollTop = msgs.scrollHeight;
+    return el;
+  }
+
+  function fillInput(text) {
+    input.value = text;
+    input.focus();
+  }
+
+  const replies = [
+    '收到！这是一个静态演示 Demo，完整流程请点击下方 Proposal 入口体验。',
+    '好的，我已理解你的需求。在正式环境中我会调用达人库与洞察数据来完成任务，Demo 中可点击 Proposal 继续浏览。',
+    '没问题！当前为演示环境，我先给你一个示例回复。你可以点击 Proposal 进入达人推荐工作台。'
+  ];
+  let replyIdx = 0;
+
+  function send() {
+    const text = input.value.trim();
+    if (!text) return;
+    bubble('user', text);
+    input.value = '';
+    const typing = bubble('agent typing', 'Agent 正在思考…');
+    setTimeout(() => {
+      typing.remove();
+      bubble('agent', replies[replyIdx++ % replies.length]);
+    }, 700);
+  }
+
+  function pick(btn, prompt) {
+    if (btn.classList.contains('active')) return;
+    document.querySelectorAll('.entry').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    fillInput(prompt);
+    showToast('「' + btn.textContent.trim() + '」为演示占位，已为你填入示例指令');
+  }
+
+  let toastTimer;
+  function showToast(text) {
+    const t = document.getElementById('toast');
+    t.textContent = text;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+</script>
+</body>
+</html>

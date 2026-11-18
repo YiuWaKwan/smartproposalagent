@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KOL Select — Alert List</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pink: #FF3B70;
+    --pink-bg: #FFF0F4;
+    --ink: #1F1035;
+    --ink-2: #1F1224;
+    --slate: #475569;
+    --muted: #9CA3AF;
+    --gray-600: #6B7280;
+    --line: #E5E7EB;
+    --line-soft: #F0E4EC;
+    --line-violet: #E5E0FF;
+    --row-alt: #F9FAFB;
+    --green: #33CC4D;
+    --red: #E53333;
+    --tier2: #F97316;
+    --tier2-bg: #FFF7ED;
+    --tier3: #6B7280;
+    --tier3-bg: #F3F4F6;
+    --toggle-off: #D9DEE3;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-size: 14px;
+    background: var(--ink);
+    color: var(--ink);
+  }
+  svg { display: block; }
+  button { font-family: inherit; cursor: pointer; }
+  input, select { font-family: inherit; outline: none; }
+
+  .app { display: flex; min-height: 100vh; }
+
+  .tinted { position: relative; }
+  .tinted::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('assets/hero-model.png') center / cover no-repeat;
+    opacity: 0.15;
+    pointer-events: none;
+  }
+  .tinted > * { position: relative; }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding: 24px;
+    background: #FFFFFF;
+    border-right: 1px solid var(--line-soft);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .logo-container { display: flex; align-items: center; gap: 8px; }
+  .logo-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--pink);
+    border: 1px solid var(--pink);
+    display: flex; align-items: center; justify-content: center;
+    color: #FFFFFF;
+    flex-shrink: 0;
+  }
+  .logo-text { font-size: 20px; font-weight: 800; color: var(--ink-2); letter-spacing: -0.2px; }
+  .nav-list { display: flex; flex-direction: column; gap: 4px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px; font-weight: 500;
+    color: var(--gray-600);
+    background: transparent;
+    border: none;
+    text-align: left;
+  }
+  .nav-item.active { background: var(--pink-bg); color: var(--pink); font-weight: 600; }
+
+  /* ---------- Main ---------- */
+  .main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding: 24px;
+    background: #FAFAFC;
+  }
+
+  .top-bar { display: flex; align-items: center; justify-content: space-between; }
+  .page-title { font-size: 22px; font-weight: 700; color: var(--ink); }
+  .btn-import {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 12px;
+    background: #FF0000;
+    color: #FFFFFF;
+    font-size: 13px; font-weight: 600;
+    box-shadow: 0 8px 18px rgba(255, 59, 112, 0.35);
+  }
+  .btn-import:hover { filter: brightness(1.05); }
+
+  /* ---------- Filter bar ---------- */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    border-radius: 16px;
+    background: #FFFFFF;
+    border: 1px solid var(--line-violet);
+  }
+  .search-box {
+    flex: 1;
+    display: flex; align-items: center; gap: 8px;
+    height: 37px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--row-alt);
+    border: 1px solid var(--line);
+    color: var(--muted);
+  }
+  .search-box input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .search-box input::placeholder { color: var(--muted); }
+  .filter-select {
+    width: 180px;
+    height: 37px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #FFFFFF;
+    border: 1px solid var(--line-soft);
+    font-size: 14px;
+    color: var(--ink);
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    cursor: pointer;
+  }
+  .btn-query {
+    height: 37px;
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    background: #FF0000;
+    color: #FFFFFF;
+    font-size: 14px; font-weight: 600;
+  }
+  .btn-query:hover { filter: brightness(1.05); }
+
+  /* ---------- Table ---------- */
+  .table-container {
+    border-radius: 20px;
+    background: #FFFFFF;
+    border: 1px solid var(--line-soft);
+    overflow: hidden;
+  }
+  .table-row {
+    display: grid;
+    grid-template-columns: 200px 80px 84px 64px 170px minmax(0, 1fr) 130px 80px 80px 60px;
+    gap: 16px;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--line-violet);
+    min-height: 72px;
+  }
+  .table-row.header {
+    background: var(--row-alt);
+    min-height: 64px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+  .table-row.header .th {
+    font-size: 13px; font-weight: 600; color: var(--muted);
+  }
+  .table-row.data { background: #FFFFFF; }
+  .table-row.data:nth-child(odd) { background: var(--row-alt); }
+  .table-row.data:last-of-type { border-bottom: none; }
+
+  .kol-cell { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+  .kol-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .kol-name { font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kol-account { font-size: 12px; font-weight: 400; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .badge { display: inline-flex; justify-content: center; }
+  .tier-badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12px; font-weight: 500;
+    white-space: nowrap;
+  }
+  .tier-1 { background: var(--pink-bg); color: var(--pink); }
+  .tier-2 { background: var(--tier2-bg); color: var(--tier2); }
+  .tier-3 { background: var(--tier3-bg); color: var(--tier3); }
+  .platform-tag {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--pink-bg);
+    color: var(--pink);
+    font-size: 11px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.green { background: var(--green); }
+  .dot.red { background: var(--red); }
+
+  .td { font-size: 14px; font-weight: 400; color: var(--slate); }
+  .td.strong { font-size: 13px; font-weight: 600; }
+  .td.risk { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Toggle */
+  .toggle {
+    width: 40px; height: 20px;
+    border-radius: 10px;
+    background: var(--toggle-off);
+    border: none;
+    position: relative;
+    transition: background .2s ease;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    transition: transform .2s ease;
+  }
+  .toggle.on { background: var(--pink); }
+  .toggle.on::after { transform: translateX(20px); }
+
+  /* ---------- Pagination ---------- */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px;
+  }
+  .page-info { font-size: 13px; font-weight: 400; color: #6B737D; }
+  .page-total { font-size: 13px; font-weight: 400; color: var(--muted); }
+  .page-nav { display: flex; align-items: center; gap: 100px; }
+  .page-btn {
+    width: 30px; height: 30px;
+    border-radius: 6px;
+    background: var(--row-alt);
+    border: 1px solid var(--line-soft);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--slate);
+  }
+  .page-num {
+    min-width: 28px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    font-size: 13px; font-weight: 400;
+    color: var(--slate);
+  }
+  .page-num.active { background: var(--pink); color: #FFFFFF; font-weight: 600; }
+  .page-ellipsis { font-size: 13px; color: var(--muted); }
+
+  @media (max-width: 1200px) {
+    .table-row { grid-template-columns: 160px 64px 68px 50px 150px minmax(0,1fr) 110px 70px 70px 50px; gap: 12px; }
+    .page-nav { gap: 24px; }
+  }
+</style>
+  <script>try{if(localStorage.getItem('spSidebarCollapsed')==='1')document.documentElement.classList.add('sb-collapsed')}catch(e){}</script>
+  <link rel="stylesheet" href="assets/sidebar.css">
+  <script src="assets/sidebar.js" defer></script>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo-container">
+      <div class="logo-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+      <div class="logo-text">Smart Proposal</div>
+    </div>
+
+    <nav class="nav-groups">
+      <div class="nav-group">
+        <button class="nav-group-head" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></span>
+          <span class="g-label">活动管理</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-campaign-list.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+            <span>活动列表</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-campaign-create.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            <span>创建活动</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-campaign-empty.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+            <span>活动列表（空状态）</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-precheck-submit-records.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+            <span>提交记录</span>
+          </a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <button class="nav-group-head" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg></span>
+          <span class="g-label">选人任务</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-task-list.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z"/></svg>
+            <span>活动详情（任务列表）</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-kolRec-detail.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.7L19.6 10l-5.7 1.9L12 17.6l-1.9-5.7L4.4 10l5.7-1.3L12 3Z"/><path d="M19 15l.9 2.6L22.5 18.5l-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9L19 15Z"/></svg>
+            <span>AI 选人结果</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-tier.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1 14h6"/><path d="M9 8h6"/><path d="M17 16h6"/></svg>
+            <span>圈选总览 By Tier</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-talking-angle.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1 14h6"/><path d="M9 8h6"/><path d="M17 16h6"/></svg>
+            <span>圈选总览 By Talking Angle</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-tier-confirm.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.1V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            <span>名单确认</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-selection-tier-confirmed.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.1V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            <span>名单确认（已确认）</span>
+          </a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <button class="nav-group-head" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg></span>
+          <span class="g-label">Pre-Check</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child" href="smart-proposal-precheck-query.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="m21 21-4.3-4.3"/></svg>
+            <span>Pre-Check 查询</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-precheck-history.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"/><path d="M12 6v6l4 2"/></svg>
+            <span>Pre-Check 历史</span>
+          </a>
+        </div>
+      </div>
+      <div class="nav-group open">
+        <button class="nav-group-head active" type="button">
+          <span class="g-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><path d="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></span>
+          <span class="g-label">Alert List</span>
+          <span class="g-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <a class="nav-child active" href="smart-proposal-alert-list.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1Z"/></svg>
+            <span>Alert List</span>
+          </a>
+          <a class="nav-child" href="smart-proposal-alert-list-dialog.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+            <span>状态变更确认</span>
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <button class="sidebar-toggle" aria-label="收起侧边栏">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <div class="user-row">
+        <div class="user-avatar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><path d="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></div>
+        <span class="user-name">Raven.Cai</span>
+        <button class="user-logout" aria-label="退出登录"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><path d="M12 2v10"/></svg></button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main tinted">
+
+    <div class="top-bar">
+      <h1 class="page-title">Alert List</h1>
+      <button class="btn-import">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>
+        </svg>
+        批量导入
+      </button>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+        <input type="text" placeholder="搜索KOL名称/平台账号">
+      </div>
+      <select class="filter-select">
+        <option>全部平台</option>
+        <option>小红书</option>
+        <option>抖音</option>
+        <option>微博</option>
+        <option>B站</option>
+      </select>
+      <select class="filter-select">
+        <option>全部状态</option>
+        <option>已拉黑</option>
+        <option>已解除</option>
+      </select>
+      <button class="btn-query">查询</button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container">
+      <div class="table-row header">
+        <span class="th">KOL名称</span>
+        <span class="th">平台</span>
+        <span class="th">PRE-CHECK</span>
+        <span class="th">粉丝数</span>
+        <span class="th">状态变更时间</span>
+        <span class="th">风险</span>
+        <span class="th">Performance Index</span>
+        <span class="th">操作人</span>
+        <span class="th">Always On</span>
+        <span class="th">Alert</span>
+      </div>
+
+      <div class="table-row data">
+        <div class="kol-cell">
+          <img class="avatar" src="assets/avatar_297.jpg" alt="">
+          <div class="kol-info"><span class="kol-name">玩美日志-阿琳</span><span class="kol-account">@lin_alin</span></div>
+        </div>
+        <span class="badge"><span class="platform-tag">小红书</span></span>
+        <span class="td">-</span>
+        <span class="td">1.2M</span>
+        <span class="td">2024-05-20 12:21:52</span>
+        <span class="td risk">3：政治风险 | 被封杀/台独港独等政治立场不准确</span>
+        <span class="td">-</span>
+        <span class="td">张三</span>
+        <button class="toggle on" aria-label="Always On"></button>
+        <button class="toggle" aria-label="Alert"></button>
+      </div>
+
+      <div class="table-row data">
+        <div class="kol-cell">
+          <img class="avatar" src="assets/avatar_369.jpg" alt="">
+          <div class="kol-info"><span class="kol-name">科技老王评测</span><span class="kol-account">@tech_wang</span></div>
+        </div>
+        <span class="badge"><span class="platform-tag">抖音</span></span>
+        <span class="td">-</span>
+        <span class="td">850k</span>
+        <span class="td">2024-05-18 09:34:10</span>
+        <span class="td risk">2：抄袭作假 | 内容抄袭他人</span>
+        <span class="td">-</span>
+        <span class="td">李四</span>
+        <button class="toggle" aria-label="Always On"></button>
+        <button class="toggle" aria-label="Alert"></button>
+      </div>
+
+      <div class="table-row data">
+        <div class="kol-cell">
+          <img class="avatar" src="assets/avatar_441.jpg" alt="">
+          <div class="kol-info"><span class="kol-name">美食专家小李</span><span class="kol-account">@foodie_li</span></div>
+        </div>
+        <span class="badge"><span class="platform-tag">微博</span></span>
+        <span class="td">-</span>
+        <span class="td">2.4M</span>
+        <span class="td">2024-05-15 18:02:33</span>
+        <span class="td risk">3：刑事法律风险 | 违反刑法</span>
+        <span class="td">-</span>
+        <span class="td">王五</span>
+        <button class="toggle" aria-label="Always On"></button>
+        <button class="toggle" aria-label="Alert"></button>
+      </div>
+
+      <div class="table-row data">
+        <div class="kol-cell">
+          <img class="avatar" src="assets/avatar_513.jpg" alt="">
+          <div class="kol-info"><span class="kol-name">时尚穿搭喵</span><span class="kol-account">@miao_fashion</span></div>
+        </div>
+        <span class="badge"><span class="platform-tag">小红书</span></span>
+        <span class="td">-</span>
+        <span class="td">300k</span>
+        <span class="td">2024-05-10 11:47:05</span>
+        <span class="td risk">2：假货 | 卖假货,带假货_官方点名/承认</span>
+        <span class="td">-</span>
+        <span class="td">张三</span>
+        <button class="toggle on" aria-label="Always On"></button>
+        <button class="toggle" aria-label="Alert"></button>
+      </div>
+
+      <div class="table-row data">
+        <div class="kol-cell">
+          <img class="avatar" src="assets/avatar_585.jpg" alt="">
+          <div class="kol-info"><span class="kol-name">运动达人阿强</span><span class="kol-account">@strong_fit</span></div>
+        </div>
+        <span class="badge"><span class="platform-tag">抖音</span></span>
+        <span class="td">-</span>
+        <span class="td">1.5M</span>
+        <span class="td">2024-05-08 14:20:48</span>
+        <span class="td risk">3：涉毒风险 | 吸毒</span>
+        <span class="td">-</span>
+        <span class="td">赵六</span>
+        <button class="toggle" aria-label="Always On"></button>
+        <button class="toggle" aria-label="Alert"></button>
+      </div>
+
+      <div class="table-row data">
+        <div class="kol-cell">
+          <img class="avatar" src="assets/avatar_657.jpg" alt="">
+          <div class="kol-info"><span class="kol-name">萌宠日常</span><span class="kol-account">@cute_pets_daily</span></div>
+        </div>
+        <span class="badge"><span class="platform-tag">B站</span></span>
+        <span class="td">-</span>
+        <span class="td">600k</span>
+        <span class="td">2024-05-02 16:55:21</span>
+        <span class="td risk">1：舆论风险 | 绯闻事件/道德事件</span>
+        <span class="td">-</span>
+        <span class="td">王五</span>
+        <button class="toggle on" aria-label="Always On"></button>
+        <button class="toggle" aria-label="Alert"></button>
+      </div>
+
+      <div class="table-row data">
+        <div class="kol-cell">
+          <img class="avatar" src="assets/avatar_729.jpg" alt="">
+          <div class="kol-info"><span class="kol-name">生活美学馆</span><span class="kol-account">@beauty_aesthetics</span></div>
+        </div>
+        <span class="badge"><span class="platform-tag">小红书</span></span>
+        <span class="td">-</span>
+        <span class="td">120k</span>
+        <span class="td">2024-04-28 08:13:59</span>
+        <span class="td risk">2：负面事件 | 负面事件</span>
+        <span class="td">-</span>
+        <span class="td">李四</span>
+        <button class="toggle on" aria-label="Always On"></button>
+        <button class="toggle" aria-label="Alert"></button>
+      </div>
+
+      <div class="table-row data">
+        <div class="kol-cell">
+          <img class="avatar" src="assets/avatar_801.jpg" alt="">
+          <div class="kol-info"><span class="kol-name">探店小达人</span><span class="kol-account">@shop_explorer</span></div>
+        </div>
+        <span class="badge"><span class="platform-tag">抖音</span></span>
+        <span class="td">-</span>
+        <span class="td">90k</span>
+        <span class="td">2024-04-20 20:41:14</span>
+        <span class="td risk">2：违反交通法规 | 违反交通法规</span>
+        <span class="td">-</span>
+        <span class="td">张三</span>
+        <button class="toggle" aria-label="Always On"></button>
+        <button class="toggle" aria-label="Alert"></button>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination">
+        <span class="page-info">共 384 人</span>
+        <div class="page-nav">
+          <button class="page-btn" aria-label="上一页">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <button class="page-num active">1</button>
+          <button class="page-num">2</button>
+          <button class="page-num">3</button>
+          <span class="page-ellipsis">...</span>
+          <button class="page-num">48</button>
+          <button class="page-btn" aria-label="下一页">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+        <span class="page-total">共 384 条数据</span>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('.toggle').forEach(function (t) {
+    t.addEventListener('click', function () { t.classList.toggle('on'); });
+  });
+</script>
+</body>
+</html>
