@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>活动创建流程 · 中文图解</title>
+<style>
+  :root{
+    --ink:#0f172a; --muted:#5b6b82; --faint:#9aa8ba;
+    --ok:#0d9f6e;   --ok-bg:#f2fcf8;   --ok-line:#6ed3ad;
+    --warn:#b45309; --warn-bg:#fffbf2; --warn-line:#f5c46b;
+    --todo:#be123c; --todo-bg:#fff7f9; --todo-line:#f9a8b8;
+    --cond:#4f46e5;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; padding:32px 32px 72px;
+    background:
+      radial-gradient(1200px 600px at 12% -10%, #eef4ff 0%, transparent 60%),
+      radial-gradient(900px 500px at 92% 0%, #f5f0ff 0%, transparent 55%),
+      #f7f9fc;
+    color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{ max-width:1500px; margin:0 auto 18px; }
+  h1{ margin:0 0 10px; font-size:26px; letter-spacing:-.3px; }
+  .sub{ margin:0; color:var(--muted); font-size:13px; line-height:1.85; }
+  .sub code{ background:#eef2f8; padding:1px 6px; border-radius:5px; font-size:12px; color:#334155; }
+  .lead{
+    margin:14px 0 0; padding:12px 16px; background:#fff;
+    border:1px solid #e6ecf4; border-left:4px solid #10b981; border-radius:10px;
+    font-size:13.5px; line-height:1.75; color:#334155;
+  }
+  .lead b{ color:#0f172a; }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background:#fff; border:1px solid #e2e8f0; border-radius:999px;
+    padding:5px 12px; font-size:12px; color:#334155;
+    box-shadow:0 1px 2px rgba(15,23,42,.04);
+  }
+  .chip b{ font-weight:700; }
+
+  .legend{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .lg{
+    display:inline-flex; align-items:center; gap:8px;
+    background:#fff; border:1px solid #e2e8f0; border-radius:999px;
+    padding:5px 12px; font-size:12px; color:#334155; cursor:pointer;
+  }
+  .lg:hover{ border-color:#c7d2fe; }
+  .sw{ width:20px; height:14px; border-radius:4px; display:inline-block; }
+  .sw.ok{ background:var(--ok-bg); border:1.6px solid var(--ok-line); }
+  .sw.warn{ background:var(--warn-bg); border:1.6px solid var(--warn-line); }
+  .sw.todo{ background:var(--todo-bg); border:1.6px solid var(--todo-line); }
+  .sw.dead{ background:var(--todo-bg); border:1.6px dashed #e8879c; }
+  .ln{ width:26px; height:0; border-top:2px solid #94a3b8; display:inline-block; }
+  .ln.cond{ border-top:2px dashed #818cf8; }
+
+  .canvas-wrap{
+    max-width:1500px; margin:0 auto; background:#fff;
+    border:1px solid #e6ecf4; border-radius:20px;
+    box-shadow:0 18px 50px -24px rgba(15,23,42,.28), 0 2px 6px rgba(15,23,42,.04);
+    padding:10px; overflow:hidden;
+  }
+  svg{ display:block; width:100%; height:auto; }
+
+  /* ---------- 节点 ---------- */
+  .node .box{ fill:#fff; stroke-width:1.6; transition:stroke-width .15s ease; }
+  .node:hover .box{ stroke-width:2.6; filter:drop-shadow(0 8px 16px rgba(15,23,42,.14)); }
+  .node.ok   .box{ fill:var(--ok-bg);   stroke:var(--ok-line); }
+  .node.warn .box{ fill:var(--warn-bg); stroke:var(--warn-line); }
+  .node.todo .box{ fill:var(--todo-bg); stroke:var(--todo-line); }
+  .node.dead .box{ stroke-dasharray:6 4; }
+  .node.ok   .badge{ fill:#0d9f6e; }
+  .node.todo .badge{ fill:#e11d48; }
+  .bnum{ font-size:13px; font-weight:700; fill:#fff; }
+
+  .n-title{ font-size:17px; font-weight:700; fill:var(--ink); }
+  .n-sub{ font-size:12px; fill:var(--muted); }
+  .n-sub.hot{ fill:#be123c; font-weight:600; }
+  .n-code{ font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:9.5px; fill:var(--faint); letter-spacing:.2px; }
+  .node.dead .n-title{ fill:#9d4457; }
+
+  .jtag rect{ fill:#eef2ff; stroke:#c7d2fe; stroke-width:1; }
+  .jtag text{ font-size:10px; font-weight:600; fill:var(--cond); }
+
+  /* ---------- 边 ---------- */
+  .edge{ fill:none; stroke:#94a3b8; stroke-width:1.8; stroke-linejoin:round; stroke-linecap:round; }
+  .edge.cond{ stroke:#818cf8; stroke-dasharray:7 5; }
+  .elabel{
+    font-size:11.5px; fill:#475569;
+    paint-order:stroke; stroke:#fff; stroke-width:3.5;
+    stroke-linejoin:round; stroke-linecap:round;
+  }
+  .elabel.cond{ fill:var(--cond); }
+
+  /* ---------- 终端 / 底部断开区 ---------- */
+  .start rect{ fill:#1e293b; }
+  .start text{ fill:#fff; font-size:14px; font-weight:700; letter-spacing:1px; }
+  .endpill rect{ fill:#f1f5f9; stroke:#cbd5e1; stroke-width:1.2; }
+  .endpill text{ font-size:11px; fill:#64748b; font-weight:600; }
+
+  .frame rect{ fill:#fffafb; stroke:#f0b9c6; stroke-width:1.4; stroke-dasharray:9 7; }
+  .ftitle{ font-size:13.5px; font-weight:700; fill:#9f1239; }
+  .fdesc{ font-size:11.5px; fill:#836c75; }
+  .foot{ font-size:10.5px; fill:#8a7480; }
+  .notag rect{ fill:#fff1f4; stroke:#f3b6c2; stroke-width:1; }
+  .notag text{ font-size:10px; font-weight:600; fill:#be123c; }
+
+  /* ---------- 高亮 ---------- */
+  .node{ transition:opacity .18s ease; }
+  body.dim-ok   .node:not(.ok):not(.dead)   { opacity:.15; }
+  body.dim-warn .node:not(.warn):not(.dead) { opacity:.15; }
+  body.dim-todo .node:not(.todo):not(.dead) { opacity:.15; }
+  body.dim-dead .node:not(.dead)            { opacity:.15; }
+
+  /* ---------- 正文区块 ---------- */
+  .block{ max-width:1500px; margin:26px auto 0; background:#fff; border:1px solid #e6ecf4; border-radius:16px; padding:20px 22px; box-shadow:0 2px 6px rgba(15,23,42,.04); }
+  .block h2{ margin:0 0 6px; font-size:17px; }
+  .block-sub{ margin:0 0 14px; font-size:13px; color:var(--muted); line-height:1.8; }
+  .steps{ margin:0; padding-left:22px; }
+  .steps li{ font-size:13px; line-height:1.9; color:#334155; margin-bottom:6px; }
+  .steps li b{ color:#0f172a; }
+
+  .tbl{ width:100%; border-collapse:collapse; font-size:12.5px; table-layout:fixed; }
+  .tbl th{ text-align:left; font-size:11.5px; color:var(--muted); font-weight:650; padding:8px 10px; border-bottom:1px solid #e6ecf4; white-space:nowrap; }
+  .tbl td{ padding:9px 10px; border-bottom:1px solid #f0f4f9; color:#334155; vertical-align:top; line-height:1.6; word-break:break-word; }
+  .tbl tr:last-child td{ border-bottom:none; }
+  .tbl td .mono{ display:block; margin-top:2px; font-family:ui-monospace, Menlo, monospace; font-size:10.5px; color:#9aa8ba; word-break:break-all; }
+  .tbl col.c1{ width:26%; } .tbl col.c2{ width:46%; } .tbl col.c3{ width:28%; }
+  .state{ display:inline-flex; align-items:center; gap:6px; white-space:nowrap; font-size:11.5px; }
+  .state i{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .state.ok i{ background:#10b981; } .state.warn i{ background:#f59e0b; } .state.todo i{ background:#fb7185; }
+
+  .terms{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:18px; }
+  @media (max-width:1100px){ .terms{ grid-template-columns:1fr; } }
+  .term{ background:#f8fafc; border:1px solid #eef2f7; border-radius:12px; padding:12px 14px; font-size:12px; line-height:1.75; color:#475569; }
+  .term b{ display:block; color:#0f172a; font-size:12.5px; margin-bottom:3px; }
+
+  .notes{ max-width:1500px; margin:20px auto 0; display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  @media (max-width:1100px){ .notes{ grid-template-columns:1fr; } }
+  .note{ background:#fff; border:1px solid #e6ecf4; border-radius:14px; padding:16px 18px; box-shadow:0 2px 6px rgba(15,23,42,.04); }
+  .note h3{ margin:0 0 8px; font-size:13px; font-weight:700; color:#334155; display:flex; align-items:center; gap:7px; }
+  .note h3 i{ width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
+  .note h3 i.ok{ background:#10b981; } .note h3 i.todo{ background:#fb7185; }
+  .note p{ margin:0; font-size:12px; line-height:1.8; color:#475569; }
+  .note code{ font-family:ui-monospace, Menlo, monospace; font-size:10.5px; background:#f1f5f9; padding:1px 5px; border-radius:4px; color:#334155; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>活动创建流程 · 中文图解</h1>
+  <p class="sub">
+    这张图画的是：运营同学在页面上的每一次操作（填表、确认、请求推荐……）进入后台后，会依次经过哪些步骤、在哪儿分岔、在哪儿结束。<br>
+    依据 <code>app/graphs/campaign/graph.py</code> 里的实际连线整理；图里每个中文方块，都能在同目录 <code>nodes.py</code> 找到对应函数（方块底部小字）。
+  </p>
+  <p class="lead">
+    一句话看懂：<b>先把用户这次的操作记进「草稿」→ 检查草稿 → 再决定是「继续等用户」「给用户看预览」「真正提交」还是「结束」。</b>
+  </p>
+  <div class="chips">
+    <span class="chip">可直接运行 <b>5</b></span>
+    <span class="chip">要接 Java 后台才能跑 <b>3</b></span>
+    <span class="chip">还没实现 <b>7</b>（含底部 6 个）</span>
+    <span class="chip">有代码但走不到 <b>6</b></span>
+  </div>
+  <div class="legend">
+    <span class="lg" data-filter="ok"><i class="sw ok"></i>绿色：已经能跑（本地就能执行）</span>
+    <span class="lg" data-filter="warn"><i class="sw warn"></i>黄色：已写好，要先接上 Java 后台</span>
+    <span class="lg" data-filter="todo"><i class="sw todo"></i>粉色：还没实现，走到就报错</span>
+    <span class="lg" data-filter="dead"><i class="sw dead"></i>粉色虚线：写了但没有入口，走不到</span>
+    <span class="lg"><i class="ln"></i>实线箭头：固定路线</span>
+    <span class="lg"><i class="ln cond"></i>蓝色虚线：按情况选一条走</span>
+  </div>
+</header>
+
+<div class="canvas-wrap">
+<svg viewBox="0 0 1500 1350" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="活动创建流程图（中文）">
+  <defs>
+    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <circle cx="1.5" cy="1.5" r="1.1" fill="#e9eef6"/>
+    </pattern>
+    <marker id="ah" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="11" markerHeight="11"
+            markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1.5 1.2 L10.5 6 L1.5 10.8 z" fill="#94a3b8"/>
+    </marker>
+    <marker id="ahc" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="11" markerHeight="11"
+            markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1.5 1.2 L10.5 6 L1.5 10.8 z" fill="#818cf8"/>
+    </marker>
+  </defs>
+
+  <rect width="1500" height="1350" fill="url(#grid)"/>
+
+  <!-- ============ 连线（先画，节点盖在上面） ============ -->
+  <g id="edges">
+    <path class="edge" d="M300 100 V132" marker-end="url(#ah)"/>
+    <path class="edge" d="M300 244 V280" marker-end="url(#ah)"/>
+    <!-- 识别事件 → 写入草稿（普通业务操作） -->
+    <path class="edge cond" d="M300 392 V460" marker-end="url(#ahc)"/>
+    <!-- 识别事件 → 推荐预览 -->
+    <path class="edge cond" d="M450 336 H700" marker-end="url(#ahc)"/>
+    <!-- 识别事件 → 执行推荐操作 -->
+    <path class="edge cond" d="M450 372 H638 Q650 372 650 384 V504 Q650 516 662 516 H700" marker-end="url(#ahc)"/>
+    <path class="edge" d="M300 572 V640" marker-end="url(#ah)"/>
+    <!-- 校验 → 等待用户补充 -->
+    <path class="edge cond" d="M300 752 V832" marker-end="url(#ahc)"/>
+    <!-- 校验 → 推荐预览 -->
+    <path class="edge cond" d="M450 656 H658 Q670 656 670 644 V372 Q670 360 682 360 H700" marker-end="url(#ahc)"/>
+    <!-- 校验 → 生成操作预览 -->
+    <path class="edge cond" d="M450 684 H700" marker-end="url(#ahc)"/>
+    <!-- 校验 → 提交业务操作 -->
+    <path class="edge cond" d="M450 712 H608 Q620 712 620 724 V864 Q620 876 632 876 H700" marker-end="url(#ahc)"/>
+    <!-- 校验 → 直接结束 -->
+    <path class="edge cond" d="M430 752 V761 Q430 773 442 773 H470" marker-end="url(#ahc)"/>
+    <!-- 等待用户补充 → 回到第 1 步 -->
+    <path class="edge" d="M150 888 H108 Q96 888 96 876 V196 Q96 184 108 184 H150" marker-end="url(#ah)"/>
+    <!-- 四个分支出口 → 结束 -->
+    <path class="edge" d="M1040 336 H1060" marker-end="url(#ah)"/>
+    <path class="edge" d="M1040 516 H1060" marker-end="url(#ah)"/>
+    <path class="edge" d="M1040 696 H1060" marker-end="url(#ah)"/>
+    <path class="edge" d="M1040 876 H1060" marker-end="url(#ah)"/>
+  </g>
+
+  <!-- ============ 连线上的说明文字 ============ -->
+  <g id="edge-labels">
+    <text class="elabel cond" x="318" y="430">填表 / 选活动 / 确认操作</text>
+    <text class="elabel cond" x="318" y="798">信息不全，等用户补充</text>
+
+    <text class="elabel cond" x="462" y="330">用户请求启动推荐</text>
+    <text class="elabel cond" x="462" y="366">确认启动 / 查询进度</text>
+
+    <text class="elabel cond" x="462" y="650">需要用户确认「是否启动推荐」</text>
+    <text class="elabel cond" x="462" y="678">需要用户确认「创建内容」</text>
+    <text class="elabel cond" x="462" y="706">已确认，可以真正提交</text>
+
+    <text class="elabel" transform="rotate(-90 84 540)" x="84" y="540" text-anchor="middle">用户补充信息后，从第 1 步重新开始</text>
+  </g>
+
+  <!-- ============ 开始 ============ -->
+  <g class="start" transform="translate(240,56)">
+    <title>流程入口：每一次用户操作都会从这里开始</title>
+    <rect width="120" height="44" rx="22"/>
+    <text x="60" y="28" text-anchor="middle">开始</text>
+  </g>
+
+  <text class="fdesc" x="700" y="266" style="font-size:12px">↓ 右边这些是「分支步骤」：主流程走到某个判断时才会进来</text>
+
+  <!-- ============ 主流程（左侧竖线） ============ -->
+  <g class="node ok" transform="translate(150,132)">
+    <title>prepare_context：确认有草稿，记录状态版本号</title>
+    <rect class="box" width="300" height="112" rx="14"/>
+    <circle class="badge" cx="32" cy="38" r="15"/>
+    <text class="bnum" x="32" y="43" text-anchor="middle">1</text>
+    <text class="n-title" x="58" y="44">准备初始状态</text>
+    <text class="n-sub" x="24" y="74">确认有草稿，记下状态版本号</text>
+    <text class="n-sub" x="24" y="92">（权限、品牌、记忆等留给后续步骤）</text>
+    <text class="n-code" x="24" y="106">代码：prepare_context</text>
+  </g>
+
+  <g class="node ok" transform="translate(150,280)">
+    <title>interpret_event：判断这次是什么操作，决定走哪条路</title>
+    <rect class="box" width="300" height="112" rx="14"/>
+    <circle class="badge" cx="32" cy="38" r="15"/>
+    <text class="bnum" x="32" y="43" text-anchor="middle">2</text>
+    <text class="n-title" x="58" y="44">识别事件类型</text>
+    <g class="jtag">
+      <rect x="238" y="14" width="48" height="20" rx="10"/>
+      <text x="262" y="28" text-anchor="middle">判断</text>
+    </g>
+    <text class="n-sub" x="24" y="74">看这次发来的是什么操作，决定走哪条路</text>
+    <text class="n-sub hot" x="24" y="92">纯文字聊天暂不支持，会直接报错</text>
+    <text class="n-code" x="24" y="106">代码：interpret_event</text>
+  </g>
+
+  <g class="node ok" transform="translate(150,460)">
+    <title>apply_event：把用户这次的操作写进草稿</title>
+    <rect class="box" width="300" height="112" rx="14"/>
+    <circle class="badge" cx="32" cy="38" r="15"/>
+    <text class="bnum" x="32" y="43" text-anchor="middle">3</text>
+    <text class="n-title" x="58" y="44">写入草稿</text>
+    <text class="n-sub" x="24" y="74">把用户填的内容、选择、确认写进草稿</text>
+    <text class="n-sub" x="24" y="92">草稿 = 还没提交的那份表单数据</text>
+    <text class="n-code" x="24" y="106">代码：apply_event</text>
+  </g>
+
+  <g class="node ok" transform="translate(150,640)">
+    <title>validate_and_route：检查草稿，算出下一步动作</title>
+    <rect class="box" width="300" height="112" rx="14"/>
+    <circle class="badge" cx="32" cy="38" r="15"/>
+    <text class="bnum" x="32" y="43" text-anchor="middle">4</text>
+    <text class="n-title" x="58" y="44">校验并决定下一步</text>
+    <g class="jtag">
+      <rect x="238" y="14" width="48" height="20" rx="10"/>
+      <text x="262" y="28" text-anchor="middle">判断</text>
+    </g>
+    <text class="n-sub" x="24" y="74">检查草稿缺不缺信息，算出下一步做什么</text>
+    <text class="n-sub" x="24" y="92">结果记进草稿里的「下一步动作」</text>
+    <text class="n-code" x="24" y="106">代码：validate_and_route</text>
+  </g>
+
+  <g class="node todo" transform="translate(150,832)">
+    <title>wait_for_user：本应暂停等用户，目前未实现，会抛错</title>
+    <rect class="box" width="300" height="112" rx="14"/>
+    <circle class="badge" cx="32" cy="38" r="15"/>
+    <text class="bnum" x="32" y="43" text-anchor="middle">5</text>
+    <text class="n-title" x="58" y="44">等待用户补充</text>
+    <text class="n-sub" x="24" y="74">本应暂停流程，等用户回复后继续</text>
+    <text class="n-sub hot" x="24" y="92">还没实现：走到这里会直接报错</text>
+    <text class="n-code" x="24" y="106">代码：wait_for_user</text>
+  </g>
+
+  <!-- ============ 分支步骤（右侧） ============ -->
+  <g class="node warn" transform="translate(700,280)">
+    <title>prepare_recommendation_preview：读 Java 任务，生成「是否启动推荐」的确认</title>
+    <rect class="box" width="340" height="112" rx="14"/>
+    <text class="n-title" x="26" y="44">推荐预览</text>
+    <text class="n-sub" x="26" y="74">去 Java 后台读任务，生成「是否启动推荐」</text>
+    <text class="n-sub" x="26" y="92">的确认内容（这时还没真正启动）</text>
+    <text class="n-code" x="26" y="106">代码：prepare_recommendation_preview</text>
+  </g>
+
+  <g class="node warn" transform="translate(700,460)">
+    <title>execute_recommendation_operation：启动推荐 / 查询进度 / 存快照</title>
+    <rect class="box" width="340" height="112" rx="14"/>
+    <text class="n-title" x="26" y="44">执行推荐操作</text>
+    <text class="n-sub" x="26" y="74">真正启动推荐；或查询进度，出结果后</text>
+    <text class="n-sub" x="26" y="92">把候选名单存成快照</text>
+    <text class="n-code" x="26" y="106">代码：execute_recommendation_operation</text>
+  </g>
+
+  <g class="node ok" transform="translate(700,640)">
+    <title>prepare_operation_preview：生成「将要创建什么」的预览</title>
+    <rect class="box" width="340" height="112" rx="14"/>
+    <text class="n-title" x="26" y="44">生成操作预览</text>
+    <text class="n-sub" x="26" y="74">生成「将要创建的活动 / 任务」预览</text>
+    <text class="n-sub" x="26" y="92">等用户点确认（这时还没真的创建）</text>
+    <text class="n-code" x="26" y="106">代码：prepare_operation_preview</text>
+  </g>
+
+  <g class="node warn" transform="translate(700,820)">
+    <title>reserve_business_operation：真正调用 Java 接口创建活动 / 任务</title>
+    <rect class="box" width="340" height="112" rx="14"/>
+    <text class="n-title" x="26" y="44">提交业务操作</text>
+    <text class="n-sub" x="26" y="74">用户已确认，真正调用 Java 接口：</text>
+    <text class="n-sub" x="26" y="92">创建活动 / 创建任务</text>
+    <text class="n-code" x="26" y="106">代码：reserve_business_operation</text>
+  </g>
+
+  <!-- ============ 结束标记 ============ -->
+  <g class="endpill" transform="translate(1060,321)">
+    <rect width="72" height="30" rx="15"/>
+    <text x="36" y="20" text-anchor="middle">结束</text>
+  </g>
+  <g class="endpill" transform="translate(1060,501)">
+    <rect width="72" height="30" rx="15"/>
+    <text x="36" y="20" text-anchor="middle">结束</text>
+  </g>
+  <g class="endpill" transform="translate(1060,681)">
+    <rect width="72" height="30" rx="15"/>
+    <text x="36" y="20" text-anchor="middle">结束</text>
+  </g>
+  <g class="endpill" transform="translate(1060,861)">
+    <rect width="72" height="30" rx="15"/>
+    <text x="36" y="20" text-anchor="middle">结束</text>
+  </g>
+  <g class="endpill" transform="translate(470,758)">
+    <rect width="90" height="30" rx="15"/>
+    <text x="45" y="20" text-anchor="middle">直接结束</text>
+  </g>
+
+  <!-- 要点提示 -->
+  <g>
+    <rect x="690" y="938" width="720" height="34" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="706" y="960" style="font-size:12px;fill:#64748b">要点：用户每操作一次，流程就从「开始」跑到「结束」一遍，不是一直挂着等。</text>
+  </g>
+
+  <!-- ============ 底部：走不到的两条链 ============ -->
+  <g class="frame">
+    <rect x="90" y="985" width="1320" height="345" rx="18"/>
+    <text class="ftitle" x="118" y="1018">注意：下面这两条流程虽然写了，但从「开始」永远走不到</text>
+    <text class="fdesc" x="118" y="1040">它们没有任何入口箭头，是早期设计留下的占位步骤；里面的函数一旦被调用就报错。</text>
+  </g>
+
+  <!-- 链路一 -->
+  <g class="node todo dead" transform="translate(130,1060)">
+    <title>run_recommendation：让后台异步跑推荐（无入口）</title>
+    <rect class="box" width="280" height="84" rx="12"/>
+    <text class="n-title" x="20" y="32">启动推荐</text>
+    <text class="n-sub" x="20" y="54">让后台异步跑一个推荐任务</text>
+    <text class="n-code" x="20" y="74">代码：run_recommendation</text>
+    <g class="notag"><rect x="202" y="10" width="64" height="18" rx="9"/><text x="234" y="23" text-anchor="middle">无入口</text></g>
+  </g>
+  <g class="node todo dead" transform="translate(458,1060)">
+    <title>select_candidates：挑选并核对候选名单（未实现）</title>
+    <rect class="box" width="280" height="84" rx="12"/>
+    <text class="n-title" x="20" y="32">挑选候选</text>
+    <text class="n-sub" x="20" y="54">从结果里挑选并核对候选名单</text>
+    <text class="n-code" x="20" y="74">代码：select_candidates</text>
+  </g>
+  <g class="node todo dead" transform="translate(786,1060)">
+    <title>wait_for_selection_confirmation：等用户最终确认选择（未实现）</title>
+    <rect class="box" width="280" height="84" rx="12"/>
+    <text class="n-title" x="20" y="32">等用户确认选择</text>
+    <text class="n-sub" x="20" y="54">让用户最终确认选中哪些人</text>
+    <text class="n-code" x="20" y="74">代码：wait_for_selection_confirmation</text>
+  </g>
+  <path class="edge" d="M410 1102 H458" marker-end="url(#ah)"/>
+  <path class="edge" d="M738 1102 H786" marker-end="url(#ah)"/>
+  <path class="edge" d="M1066 1102 H1110" marker-end="url(#ah)"/>
+  <g class="endpill" transform="translate(1110,1087)">
+    <rect width="72" height="30" rx="15"/>
+    <text x="36" y="20" text-anchor="middle">结束</text>
+  </g>
+
+  <!-- 链路二 -->
+  <g class="node todo dead" transform="translate(260,1188)">
+    <title>reserve_selection_confirmation：登记最终确认（无入口）</title>
+    <rect class="box" width="280" height="84" rx="12"/>
+    <text class="n-title" x="20" y="32">预留最终确认</text>
+    <text class="n-sub" x="20" y="54">登记这次确认，防止重复提交</text>
+    <text class="n-code" x="20" y="74">代码：reserve_selection_confirmation</text>
+    <g class="notag"><rect x="202" y="10" width="64" height="18" rx="9"/><text x="234" y="23" text-anchor="middle">无入口</text></g>
+  </g>
+  <g class="node todo dead" transform="translate(588,1188)">
+    <title>submit_confirmed_selection：把最终名单提交给业务系统（未实现）</title>
+    <rect class="box" width="280" height="84" rx="12"/>
+    <text class="n-title" x="20" y="32">提交最终选择</text>
+    <text class="n-sub" x="20" y="54">把最终名单提交给业务系统</text>
+    <text class="n-code" x="20" y="74">代码：submit_confirmed_selection</text>
+  </g>
+  <g class="node todo dead" transform="translate(916,1188)">
+    <title>format_result：把结果整理成页面能显示的样子（未实现）</title>
+    <rect class="box" width="280" height="84" rx="12"/>
+    <text class="n-title" x="20" y="32">整理结果</text>
+    <text class="n-sub" x="20" y="54">把结果整理成页面能显示的样子</text>
+    <text class="n-code" x="20" y="74">代码：format_result</text>
+  </g>
+  <path class="edge" d="M540 1230 H588" marker-end="url(#ah)"/>
+  <path class="edge" d="M868 1230 H916" marker-end="url(#ah)"/>
+  <path class="edge" d="M1196 1230 H1240" marker-end="url(#ah)"/>
+  <g class="endpill" transform="translate(1240,1215)">
+    <rect width="72" height="30" rx="15"/>
+    <text x="36" y="20" text-anchor="middle">结束</text>
+  </g>
+
+  <text class="foot" x="118" y="1306">另外：代码里还登记了「审核 → 等用户确认选择」这条分支，但判断函数永远不会返回「审核」，所以它同样是死路。</text>
+</svg>
+</div>
+
+<section class="block">
+  <h2>跟着一个例子走一遍</h2>
+  <p class="block-sub">场景：运营要建一个「春季新品」投放活动，并让系统推荐合适的达人。注意：<b>用户每操作一次，流程就完整跑一遍</b>，不是挂在那里一直等。</p>
+  <ol class="steps">
+    <li><b>用户填预算，点「下一步」</b> → 流程走：1 准备 → 2 识别（这是填表）→ 3 写入草稿 → 4 校验 → 发现信息齐了、只差用户确认 → <b>生成操作预览</b> → 结束。</li>
+    <li><b>用户点「确认创建」</b> → 流程再跑一遍：2 识别（这是业务确认）→ 3 写入草稿 → 4 校验 → <b>提交业务操作</b>，真正调 Java 创建活动 / 任务 → 结束。</li>
+    <li><b>用户点「帮我推荐达人」</b> → 流程再跑：2 识别（这是推荐启动请求）→ <b>推荐预览</b>（去 Java 读任务，生成「是否启动推荐」确认）→ 结束。</li>
+    <li><b>用户点「确认启动推荐」</b> → 流程再跑：2 识别（这是推荐确认）→ <b>执行推荐操作</b>，真正启动推荐 → 结束。</li>
+    <li><b>系统每隔一会儿查一次进度</b> → 流程再跑：2 识别（这是进度查询）→ <b>执行推荐操作</b>，拉取结果、存成快照 → 结束。</li>
+    <li><b>信息不全的时候</b> → 会走到「等待用户补充」。但这一步还没实现，走到就直接报错，这是目前最明显的缺口。</li>
+  </ol>
+</section>
+
+<section class="block">
+  <h2>名词对照表</h2>
+  <p class="block-sub">图中每个方块对应的代码函数，以及它现在到底能不能跑。</p>
+  <table class="tbl">
+    <colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>
+    <thead>
+      <tr><th>图中的方块</th><th>说白了在做什么</th><th>现状</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><b>1 准备初始状态</b><span class="mono">prepare_context</span></td><td>确认有草稿、记下版本号，别的都不做</td><td><span class="state ok"><i></i>能跑</span></td></tr>
+      <tr><td><b>2 识别事件类型</b><span class="mono">interpret_event</span></td><td>看用户这次是什么操作，决定走哪条路</td><td><span class="state ok"><i></i>能跑（纯文字会报错）</span></td></tr>
+      <tr><td><b>3 写入草稿</b><span class="mono">apply_event</span></td><td>把填写 / 选择 / 确认写进草稿</td><td><span class="state ok"><i></i>能跑</span></td></tr>
+      <tr><td><b>4 校验并决定下一步</b><span class="mono">validate_and_route</span></td><td>检查缺什么，算出「下一步动作」</td><td><span class="state ok"><i></i>能跑</span></td></tr>
+      <tr><td><b>5 等待用户补充</b><span class="mono">wait_for_user</span></td><td>本应暂停流程等用户回复</td><td><span class="state todo"><i></i>未实现，会报错</span></td></tr>
+      <tr><td><b>推荐预览</b><span class="mono">prepare_recommendation_preview</span></td><td>读 Java 任务，生成「是否启动推荐」确认</td><td><span class="state warn"><i></i>要接 Java 后台</span></td></tr>
+      <tr><td><b>执行推荐操作</b><span class="mono">execute_recommendation_operation</span></td><td>启动推荐 / 查进度 / 出结果后存快照</td><td><span class="state warn"><i></i>要接 Java 后台</span></td></tr>
+      <tr><td><b>生成操作预览</b><span class="mono">prepare_operation_preview</span></td><td>生成「将要创建什么」的预览，等用户确认</td><td><span class="state ok"><i></i>能跑</span></td></tr>
+      <tr><td><b>提交业务操作</b><span class="mono">reserve_business_operation</span></td><td>真正调 Java 接口创建活动 / 任务</td><td><span class="state warn"><i></i>要接 Java 后台</span></td></tr>
+      <tr><td><b>底部两条链（6 个方块）</b><span class="mono">run_recommendation / select_candidates / ...</span></td><td>推荐跑批、候选挑选、最终确认与提交</td><td><span class="state todo"><i></i>未实现且走不到</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="terms">
+    <div class="term"><b>草稿</b>用户正在填、还没提交的一份数据。流程每一步都在改它，它也决定「下一步做什么」。</div>
+    <div class="term"><b>事件</b>用户在前端的一次操作：填了一格、选了一个活动、点了确认……</div>
+    <div class="term"><b>下一步动作</b>草稿上的一个标记，值是「等用户 / 要预览 / 要提交 / 结束」之一，判断分支就看它。</div>
+    <div class="term"><b>快照</b>推荐结果的一份存档；之后的挑选和确认都以它为准，避免结果被改乱。</div>
+    <div class="term"><b>轮询</b>隔一会儿问一次「推荐算好了没」，直到出结果。</div>
+    <div class="term"><b>条件分支</b>先判断条件，再从多条箭头里选一条走（图中蓝色虚线）。</div>
+  </div>
+</section>
+
+<div class="notes">
+  <div class="note">
+    <h3><i class="ok"></i>现在真正跑得通的路线</h3>
+    <p>
+      开始 → 准备初始状态 → 识别事件类型 →（普通操作）写入草稿 → 校验并决定下一步 → 生成操作预览 / 直接结束。
+      两个推荐步骤和提交业务操作代码已写好，但必须先接上 Java 后台服务，否则会报「未配置」。
+    </p>
+  </div>
+  <div class="note">
+    <h3><i class="todo"></i>「等待用户补充」是断头路</h3>
+    <p>
+      图左侧那条回环（用户补充后回到第 1 步）在纸面上存在，但「等待用户补充」节点直接抛错——
+      因为暂停 / 恢复所需的持久化还没做。所以运行期只要走到这里就中断，回环走不回来。
+    </p>
+  </div>
+  <div class="note">
+    <h3><i class="todo"></i>底部两条孤链和「审核」死分支</h3>
+    <p>
+      推荐跑批、最终提交这两条链没有任何箭头指向它们，永远不会执行；
+      另外代码里把「审核」分支映射到了「等用户确认选择」，但判断函数永远不会返回「审核」，这条分支也是死路。
+    </p>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var body = document.body;
+    var items = document.querySelectorAll('.legend .lg[data-filter]');
+    items.forEach(function (item) {
+      item.addEventListener('click', function () {
+        var key = item.getAttribute('data-filter');
+        var cls = 'dim-' + key;
+        var active = body.classList.contains(cls);
+        ['dim-ok', 'dim-warn', 'dim-todo', 'dim-dead'].forEach(function (c) {
+          body.classList.remove(c);
+        });
+        if (!active) body.classList.add(cls);
+      });
+    });
+  })();
+</script>
+</body>
+</html>

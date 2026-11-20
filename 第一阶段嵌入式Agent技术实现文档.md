@@ -30,7 +30,7 @@
 - 以语义相似度搜索个人长期偏好；偏好召回使用带权限条件的结构化精确查询。
 - 在没有业务确认和数据源定义前，对历史会话/活动案例执行在线向量检索。
 - 未经确认直接提交最终 KOL 名单，或绕开现有业务服务直接改写正式业务表。
-- Campaign 创建自动化遵循现有创建 API 的校验/提交规则，不额外增加预览确认门槛；输入歧义时必须先澄清。最终 KOL 名单必须由用户在候选卡中确认。
+- Campaign 创建自动化遵循现有创建 API 的校验/提交规则；按当前 Agent 决策，Campaign create、Task create 和 Recommend start 各自保留独立的 Agent 确认门。输入歧义时必须先澄清。最终 KOL 名单必须由用户在候选卡中确认。
 
 ## 2. 原型映射与产品行为
 
@@ -93,7 +93,7 @@ Agent 的澄清针对缺少必填、输入歧义或约束冲突；可选项未�
 
 完整 Agent 流程按现有业务服务契约编排为：用户描述 Campaign 目标 → 提取 Product/Campaign 字段并澄清关键歧义 → 调用现有 Campaign 创建 API 并取得正式 `campaign_id` → 收集推荐 task 条件并调用现有创建任务能力 → 调用/查询已有推荐能力 → 将既有模型选人结果（或仅在现有能力不做选人时由 Agent 生成的名单）和 full candidate pool 投影到确认卡 → 用户增删、替换或确认 → 调用正式名单确认服务 → 展示确认回执及跳转现有 Campaign/名单页面。Campaign 已存在时允许用户显式选择该 campaign 后从中途开始，不重复创建。失败时保留上一步成功的业务对象 ID 和状态，以查询/对账恢复，不从头重建造成重复 Campaign。
 
-Campaign 创建请求按 2.1 节映射 UAT 现有字段。自然语言可以跨步骤一次提供活动和产品信息，Agent 不必机械模拟点击顺序，但必须通过同一业务校验。未提供的可选周期/总预算允许留空；用户已经提供但含义不明的预算、日期或矛盾条件进入 `awaiting_clarification`。必填完整、关键歧义消除后自动调用创建 API，不增加专属预览确认。Campaign 创建后修改走现有编辑服务，不能用创建请求重试隐式再建。
+Campaign 创建请求按 2.1 节映射 UAT 现有字段。自然语言可以跨步骤一次提供活动和产品信息，Agent 不必机械模拟点击顺序，但必须通过同一业务校验。未提供的可选周期/总预算允许留空；用户已经提供但含义不明的预算、日期或矛盾条件进入 `awaiting_clarification`。必填完整、关键歧义消除后进入 Campaign create 独立预览/确认，再按正式 API 规则调用创建 API。Campaign 创建后修改走现有编辑服务，不能用创建请求重试隐式再建。
 
 ### 2.3 最终候选人确认卡
 
@@ -308,7 +308,7 @@ Worker 使用短事务领取 Outbox（例如 `FOR UPDATE SKIP LOCKED`）、提�
 
 统一事件字段为 `client_event_id / type / task_id / expected_form_revision / payload`；`user_message` 允许附带当前阶段的 preview/run 身份，`form_patch` 必须带 expected revision。若现有 Campaign 流程要求确认，则 Campaign 确认绑定业务预览；最终名单确认必须绑定 recommendation run、candidate snapshot hash、selection revision 和 confirmation ID。`cancel` 必须标明取消草稿还是请求取消外部执行。所有创建、选择和确认操作使用白名单事件类型，不接受任意 graph command 或客户端指定 thread ID。
 
-`selection-events` 是统一会话事件受理服务的资源定向入口，必须复用同一事件去重/串行处理逻辑，不另建并行消费者。名单编辑使用 `selection_patch`，提交用 `confirm_selection`，关联服务端生成的当前 selection preview ID；actor 始终来自登录上下文。Campaign 是否需要显式确认只由正式业务流程决定；本 Agent 不新增额外 gate。最终名单用户确认是必需行为。
+`selection-events` 是统一会话事件受理服务的资源定向入口，必须复用同一事件去重/串行处理逻辑，不另建并行消费者。名单编辑使用 `selection_patch`，提交用 `confirm_selection`，关联服务端生成的当前 selection preview ID；actor 始终来自登录上下文。按当前 Agent 决策，Campaign create、Task create 和 Recommend start 都有独立确认；最终名单用户确认是必需行为。
 
 ```json
 {
@@ -520,7 +520,7 @@ tests/
 
 ## 11. 验收标准
 
-- 用户可用自然语言启动 Campaign 创建，补齐 Product/Campaign 信息，歧义时先澄清；信息明确后遵循既有 API 规则自动创建 Campaign，再调用任务创建和推荐服务，不新增 Campaign 确认门槛。重复事件/进程崩溃不重复创建 Campaign 或任务。
+- 用户可用自然语言启动 Campaign 创建，补齐 Product/Campaign 信息，歧义时先澄清；信息明确后经过 Campaign 独立预览/确认，再遵循既有 API 规则创建 Campaign，随后调用任务创建和推荐服务。重复事件/进程崩溃不重复创建 Campaign 或任务。
 - 推荐完成后卡片同时显示模型拟选名单和本次全部候选（候选量较大时分页且显示准确总数）；可编辑用户选择并确认，只有用户确认后才调用既有名单确认服务。
 - Campaign 创建与名单提交独立记录；最终名单必须由用户确认，并绑定 campaign/task/run/candidate snapshot hash/selection revision/actor，旧版本、未授权或候选集外 ID 均被拒绝。
 - 字段来源可识别；修改一个字段不丢失其他已确定字段；`clear`/不限与未提供字段语义一致。
@@ -535,6 +535,8 @@ tests/
 - 长会话压缩后金额/否定条件和待确认点保持，历史消息仍可查看；偏好可查看、编辑、停用和删除，撤销后旧 checkpoint 不重新注入。
 - 若启用 pgvector，必须通过 owner/tenant/brand 过滤、删除同步、索引重建和跨品牌泄漏测试；否则验收项为扩展安装/迁移策略已评审，但向量检索不在在线路径。
 - 确定性安全/幂等/恢复回归全部通过。准备业务验证集，覆盖至少 100 条真实运营表达及多轮修正；语言理解质量目标经业务确认后再设阈值。
+
+新增设计验收边界：输入分流/typed proposal、Vue snapshot/patch 回显和语音转写在本轮只完成设计，不作为当前代码验收证据。自然语言意图识别需在 LLM 接入时单独评测；Vue 回显需验证白名单字段、form revision 冲突、SSE 重连和回显不提交；语音若经 PoC/合规批准后纳入，再验证权限、批量 ASR、用户确认发送、术语质量和音频留存边界。
 
 ## 12. 待评审/确认事项
 
@@ -566,3 +568,225 @@ tests/
 | Codex `codex-rs/thread-store/src/store.rs`、`src/live_thread.rs`：`append_items / resume` | 原始历史追加与显式元数据更新分工；恢复使用取得 writer 后的历史 | 档案、列表投影和执行台账各有所有者；Python/PostgreSQL 实现，不照搬 Rust/JSONL/SQLite 存储 |
 
 业务基线为 `/Users/huajun.yao/Downloads/第一阶段内部运营助手技术方案.md`，原型文件见第 2 节。LangGraph 实现时还需对照锁定版本的 [Persistence](https://docs.langchain.com/oss/python/langgraph/persistence)、[Interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts) 和 [Memory](https://docs.langchain.com/oss/python/langgraph/add-memory) 文档验证 API；本文的业务事务、事件协议和鉴权是本应用设计，不由框架自动提供。
+
+## 14. 输入分流与自然语言意图提取
+
+当前代码已经有 `prepare_context → interpret_event → _event_route`。`interpret_event` 目前承担结构化事件识别，`UserMessage` 会在自然语言抽取未实现处停止。本设计不新增一个与 `interpret_event` 重复的节点：在接入 LLM 时，将 `interpret_event` 最小调整为 `dispatch_input` 职责，或保留代码名称而在其内部增加同等分流逻辑。
+
+目标拓扑为：
+
+```text
+START
+  → prepare_context
+  → dispatch_input / interpret_event
+      ├─ 结构化事件 → 现有确定性校验与处理
+      └─ UserMessage → intent_and_extraction
+                         → validate_proposal
+                             ├─ 可处理 → typed patch/event 或现有只读查询流程
+                             ├─ 有歧义 → clarify
+                             ├─ 当前不支持 → unsupported
+                             └─ 模型/schema 失败 → recoverable_error / manual_input
+```
+
+### 14.1 放置位置与可信上下文
+
+意图提取必须位于 `prepare_context` 之后。模型需要知道当前 actor、tenant、brand 和授权边界，当前会话的 workflow 列表及当前 workflow 指针，当前 Campaign/Java Task、Agent workflow stage、form revision、字段来源、pending operation/confirmation、recommendation run、候选/selection 状态和待处理 UI。没有这些上下文，模型无法区分“修改当前任务”“切换到已有任务”和“创建新 workflow”，也无法知道文本是否可能触及待确认或 unknown 状态。
+
+`prepare_context` 只加载可信运行时上下文和有界业务摘要；它不把凭证、任意 URL、完整候选结果或未经授权的其他 workflow 数据交给模型。当前 workflow 的完整结构化事实优先于模型提议，其他 workflow 只提供经过权限过滤的有限标题/状态候选。
+
+结构化事件继续绕过模型：`FormPatchEvent`、Campaign selection、业务 operation confirmation、Recommend confirmation、poll 和未来的 `selection_patch`/`confirm_selection` 由确定性代码按 discriminator 分流。模型不能重新解释、改写或提升这些事件的权限。
+
+### 14.2 最小意图集合
+
+最小集合只覆盖当前产品和已存在能力：
+
+- `update_campaign`：补充或修改当前 workflow 的 Campaign 字段；
+- `update_recommendation_task`：补充或修改推荐任务字段；
+- `query_task_status`：查询当前或明确指定 Task 的状态/进度；
+- `view_recommendation_results`：请求查看已完成推荐的结果；
+- `business_operation_intent`：表达创建、启动或其他业务操作意图，但不产生确认或写入；
+- `switch_workflow`：明确切换到已有 workflow/Campaign/Task 或创建新的 workflow；
+- `unclear`、`unsupported`：意图不明确、信息不足或当前能力不支持。
+
+`edit_selection` 和 `confirm_selection` 可以作为未来自然语言的意图线索，但不会直接触发名单保存或封板；当前 selection 仍由结构化 UI 事件驱动。不要在意图枚举中提前加入没有 adapter、权限和业务契约的通用工具动作。
+
+### 14.3 Typed proposal 与 validate_proposal
+
+模型只输出提议，不输出 AgentState 或 graph command。建议的 Pydantic 形态如下，字段名可在实现时按统一 API schema 调整：
+
+```json
+{
+  "intent": "update_recommendation_task",
+  "target": {"kind": "current_workflow"},
+  "patch": {
+    "operations": [
+      {"target": "recommendation_task", "field": "budget", "op": "set", "value": "200000"}
+    ]
+  },
+  "query": null,
+  "ambiguities": [],
+  "missing_fields": [],
+  "evidence": [{"text": "预算改成 20 万", "start": 0, "end": 8}],
+  "uncertainty": {"level": "low", "reasons": []},
+  "clarification_question": null
+}
+```
+
+Proposal schema 至少包含：
+
+- `intent`：固定枚举；
+- `target`：只能是 `current_workflow` 或受控的候选引用，不接受模型自造 UUID、Campaign ID、Task ID、actor 或 brand；
+- `patch`：复用现有 `FormPatch`/`FieldPatch` 白名单，不能重写完整表单；
+- `query`：固定查询类型和受控参数；
+- `ambiguities`、`missing_fields`：结构化问题；
+- `evidence`：原始用户文本中的有界 span 或 source reference，不把 span 当权限证据；
+- `uncertainty`：等级和原因，不把低置信度当自动拒绝以外的权限；
+- `clarification_question`：建议问题，最终问题仍由确定性状态和字段规则检查。
+
+`expected_form_revision` 不由模型输出。`prepare_context` 为本次处理固定服务端当前 revision，`validate_proposal` 将该 revision 绑定到后续生成的 typed patch/event；若模型调用期间权威 revision 已变化，拒绝旧提议并重新读取 snapshot/澄清。`target` 中若需要选择其他 workflow，只允许引用服务端提供的短期 opaque candidate key，再由确定性节点解析至已鉴权 workflow；模型不得构造 UUID 或业务 ID。
+
+`validate_proposal` 必须在任何 patch 应用或外部读取前执行：检查 intent/target 枚举、字段白名单、字段类型和 `set/clear/use_default` 语义、当前 workflow/task 归属、expected form revision、当前 stage、pending operation/confirmation 冲突、Campaign/Task 业务校验、权限和不支持字段。通过后才转换为已有 `FormPatchEvent`、受控查询请求或 workflow switch proposal；模型不能直接修改权威草稿。
+
+“就按这个来”“直接执行”“开始推荐”等文本只能形成 `business_operation_intent` 或 confirmation intent clue。它们不能生成 `BusinessOperationConfirmation`、Recommend confirmation、selection save 或 `confirm_selection`。即使文本明确要求启动 Recommend，也必须生成当前预览、让用户查看并取得独立结构化确认。名单保存和最终封板只由当前 UI 的结构化事件驱动。
+
+### 14.4 失败、注入和消息边界
+
+模型超时、不可用、结构化输出解析失败、schema 校验失败或有限修复重试耗尽时，保留原表单和 revision，不执行部分 patch；返回可恢复错误并提供手动表单/结构化事件路径。自然语言只转换为普通 `UserMessage`，模型输出作为受控 proposal 记录，不直接成为业务事件。
+
+节点专用 Context Builder 应分开固定 prompt section、proposal schema、当前可信业务 context、最近消息和 tool/result 数据。外部名称、推荐理由、错误文本和语音转写均标记为 data，不进入高优先级指令区；模型输出不得包含 URL、token、任意 API/path、身份覆盖、graph node 名称或执行状态。未来使用标准消息格式时，用户原文、模型 proposal、tool result 和确定性事件应保持不同角色/来源，不能把 tool result 重新包装成 user message。
+
+本地验证使用 deterministic fake model 或固定 proposal fixture，验证 schema、白名单、revision、歧义、错误降级和禁止副作用；这不代表真实模型的意图准确率。真实模型验证另需脱敏运营语料、抽取准确率、歧义召回、金额/日期/品牌/Task ID 错误率、P95 延迟和成本指标。当前只完成设计，子阶段 4 不因该节点阻塞；在 LLM 自然语言能力接入时实现。
+
+## 15. Vue3 结构化表单回显与同步
+
+前端页面是可修改的 Vue3 页面时，推荐使用“服务端结构化 snapshot/patch + Vue 响应式状态”，不使用 Playwright 作为生产表单控制协议。Agent 输出经过服务端 typed patch 和业务校验后，再以白名单事件发送给前端；前端使用 `reactive`/`ref` 或 Pinia 保存表单状态，继续由 `v-model`、既有组件和校验规则渲染。
+
+### 15.1 状态归属和数据流
+
+```text
+UserMessage / UI FormPatchEvent
+  → 意图提取（仅自然语言）或结构化事件分流
+  → 确定性 patch、权限和业务校验
+  → 服务端 WorkflowDraft/form_revision 更新
+  → form_snapshot 或 form_patch UI 事件
+  → Vue/Pinia 应用白名单字段
+  → v-model 回显、来源/错误/待确认展示
+  → 用户继续编辑或提交结构化 confirmation
+```
+
+服务端 `WorkflowDraft`、form revision、field provenance、validation errors、pending UI 和 operation/confirmation 状态是权威状态；前端表单是当前页面的编辑投影。前端可以有未提交的 `local_edit_revision`/dirty 状态，但不能把本地输入显示成服务端已生效，也不能把回显误认为 Campaign/Task 创建、Recommend 启动、名单保存或封板。
+
+默认采用服务端校验后回显，不做 Agent patch 的无条件乐观更新。前端用户手动编辑可以先更新本地 dirty 状态，再发送带 `expected_form_revision` 的结构化 `FormPatchEvent`；服务端接受并校验后返回新 snapshot/patch。若未来需要低延迟乐观预览，必须显式标记 `proposed`，服务端拒绝时回滚，不能改变权威 revision。
+
+### 15.2 Snapshot、Patch 和事件协议
+
+全量 `form_snapshot` 用于首次打开、刷新、切换 workflow、schema 版本变化、revision 冲突恢复和 SSE cursor 失效；增量 `form_patch_applied` 用于单次已校验 patch。建议事件包含：
+
+```json
+{
+  "event_id": "event-uuid",
+  "source_event_id": "user-event-uuid",
+  "type": "form_snapshot",
+  "schema_version": 1,
+  "conversation_id": "conversation-uuid",
+  "workflow_id": "agent-task-uuid",
+  "seq": 42,
+  "form_revision": 7,
+  "source": "agent_patch",
+  "timestamp": "2026-11-19T00:00:00Z",
+  "snapshot": {"campaign": {}, "recommendation_task": {}},
+  "field_sources": {},
+  "validation_errors": [],
+  "pending_ui": null
+}
+```
+
+Patch 事件应携带 operations、`base_form_revision`、`new_form_revision`、source、event ID 和 workflow ID；只接受当前 workflow 的新 revision。重复 event ID 且内容 hash 相同返回原结果；同 ID 不同内容拒绝。SSE 断线或刷新先读取当前 workflow snapshot 和 event cursor，再从 cursor 补拉；旧 seq 或旧 revision 事件丢弃并请求刷新，不覆盖当前编辑区。SSE 只传结构化 UI 事件，不把完整 LangGraph state、prompt、token 或任意 HTML/JS 下发给页面。
+
+### 15.3 并发、来源和安全
+
+用户手动编辑与 Agent patch 同时发生时，以服务端 revision 条件更新为准：旧 `expected_form_revision` 返回冲突和当前 snapshot，前端保留用户草稿并提示合并/重试；不能静默覆盖用户刚改的字段。任何有效字段变化递增 form revision，使对应旧 preview、operation confirmation 和执行 payload hash 失效。字段来源区分 `user_message`、`form_edit`、`memory_default`、`brand_default` 和 `system`，并展示待确认项/校验错误；来源不是权限授权。
+
+前端只接受固定字段 schema 和固定事件类型。Agent 不能下发 JavaScript、HTML、Vue 指令、动态组件代码或任意组件名；模型输出不使用 `eval`。表单文本按普通数据渲染，必要时转义。若 Agent 面板和表单跨 iframe，使用版本化 `postMessage`：限定 `targetOrigin`，接收方严格校验 `event.origin`、source window、message type/schema version/workflow ID，拒绝任意 origin，并返回带 event ID/revision 的 ack；服务端仍是权威校验方。若页面完全不可修改，content script/浏览器扩展只能作为受控外部适配或测试方案，不作为当前项目默认生产架构。
+
+Playwright 适合 E2E 验证“回显后字段正确、旧 revision 被拒绝、没有自动提交”等页面行为，也可临时适配无法修改的第三方页面；它依赖 DOM selector、页面生命周期和浏览器运行环境，难以表达 revision、来源、权限和幂等，维护成本高，不进入 Agent 生产执行链路。
+
+该能力应在内部子阶段 4 本地 selection/form review 之前完成协议定稿；真实 Vue/Pinia 页面绑定归入实施计划阶段 4 的前端集成，SSE/事件持久化与刷新补拉依赖实施计划阶段 1 的事件骨架。内部子阶段 5 的会话持久化工作需一并保存 form revision、来源和 workflow 关系。协议先定、后端持久化与前端接入按依赖实现，不应等到联调末尾才定义。当前没有 Vue 前端源码，以下为设计协议，不代表已实现。
+
+### 15.4 表单回显验收
+
+- 连续自然语言 patch 或结构化 patch 只改变目标字段，snapshot/patch revision 单调递增，其他字段和来源不丢失；
+- 用户手动编辑与 Agent patch 冲突时，旧 revision 被拒绝并返回当前 snapshot；
+- 重复事件不重复应用，旧 seq/旧 revision 不覆盖新状态；
+- 刷新、SSE 重连、切换 workflow 后能够读取对应 snapshot 和 event cursor；
+- 回显不自动创建 Campaign/Task、不启动 Recommend、不调用 batch-select、不封板；
+- 非白名单字段、恶意 HTML/JS/Vue 指令、非法 workflow ID 和模型任意状态字段均被拒绝或转义；
+- 表单来源、缺失字段、业务错误和待确认状态可展示，且前端不会把 proposed/local 状态标成 committed。
+
+## 16. 语音转文字设计
+
+本轮只完成设计，不实现 ASR、音频上传、前端录音组件或新增依赖。语音是 `UserMessage` 的输入方式，不是新的业务指令通道：
+
+```text
+idle
+  → requesting_permission
+  → recording
+  → processing/uploading
+  → transcribing
+  → draft_ready
+  → 用户检查/编辑并点击发送
+  → 普通 UserMessage
+  → 输入分流与意图提取
+```
+
+### 16.1 第一版推荐方案
+
+第一版推荐浏览器 `getUserMedia` + `MediaRecorder`，点击开始/结束的一次性批量识别；转写结果只填入聊天输入框草稿，用户主动点击发送后才创建普通 `UserMessage`。识别完成不自动发送，不直接进入 graph，不触发表单 patch、业务确认、Recommend 或封板。
+
+批量识别的实现和运维成本低，能先验证中文、金额、品牌和任务术语质量；流式识别可降低等待感，但需要 WebSocket/SSE 会话、增量文本合并、取消/重连和部分结果一致性，第一版不作为必要能力。流式 ASR 可在 PoC 证明延迟和准确率收益后作为后续扩展。
+
+录音需要 HTTPS 安全上下文和用户麦克风权限；无权限、浏览器不支持、用户拒绝或设备不可用时回退到文本输入。前端状态固定为 `idle`、`requesting_permission`、`recording`、`processing`/`uploading`、`transcribing`、`draft_ready`、`error`、`cancelled`。录音取消只清理本次临时资源，不创建消息。
+
+### 16.2 ASR 部署选择
+
+推荐先做脱敏业务语料 PoC，再在云端 ASR 与服务端自托管 `faster-whisper`/Whisper 类方案之间决策：
+
+| 方案 | 优点 | 成本/风险 | 当前判断 |
+|---|---|---|---|
+| 云端 ASR API | 上线快、无需 GPU 运维、通常有成熟中文模型 | 音频出域、供应商留存/合规、计费、网络延迟和供应商锁定 | 可作为 PoC 候选，需安全/法务和供应商条款确认 |
+| Agent 后端自托管 Whisper/faster-whisper | 数据留在受控环境，可控制保留和模型版本 | GPU/CPU 成本、并发、模型部署、中文及专有名词准确率需要实测 | 适合合规要求高或音频量稳定后评估，不在本轮直接引入依赖 |
+| 独立 ASR 服务 | 与 Agent 解耦，便于队列、限流和模型替换 | 增加服务、鉴权、运维和数据流边界 | 若 PoC 证明语音进入首阶段，再作为部署形态评审 |
+
+ASR 服务放在前端不推荐：会暴露模型/密钥、难以统一数据保留和审计。推荐前端只录音，Agent API 或受控独立 ASR 服务负责鉴权、限流、格式检查和识别；Agent 只接收有界转写草稿，不把原始音频放入 AgentState、模型上下文或普通消息历史。是否保存原始音频应默认为不保存；若合规或质量分析需要短期保存，必须有独立对象存储、加密、访问控制、保留期限和删除任务。
+
+### 16.3 业务术语、边界和接口
+
+中文、英文混说、金额、日期、品牌名、人名、Campaign/Task 名称和 KOL ID 需要通过脱敏 PoC 测试。转写文本不能直接“修正”为业务事实；金额、日期、品牌和 ID 仍由后续 UserMessage 意图提取、字段 schema 和确定性校验处理。可在 UI 展示原始转写供用户编辑，必要时提供“识别不确定”标记，但不把 ASR confidence 当业务确认。
+
+建议预留：
+
+- `POST /api/agent/asr/transcriptions` 或等价受控接口：输入短期音频流/对象引用、locale、客户端 request ID；返回 transcription draft、ASR provider/model version、duration、可选 confidence 和 error category；
+- 音频大小、时长、格式、采样率、上传超时和取消 token 的服务端限制；
+- `client_upload_id`/request ID 去重：相同音频请求重放返回同一 draft，不创建 UserMessage；
+- 错误类型：permission_denied、unsupported_format、too_large、too_long、timeout、provider_unavailable、transcription_failed、cancelled；
+- 前端只把返回的 plain text 放入输入框，发送时生成一个新的 `UserMessage.client_event_id`，并可记录 `source=voice_transcription` 和 transcription reference；未点击发送不进入消息历史。
+
+默认限制应通过 PoC 和平台容量确认，不在当前文档把具体秒数、字节数、语言模型、P95 或费用写成已确认事实。建议先设可配置上限，超限直接提示用户缩短录音；上传失败/识别失败不自动重复发送，用户可以显式重试。重试、取消、重复点击发送和网络重连均不得生成重复 UserMessage 或重复业务事件。
+
+### 16.4 隐私、降级和验收
+
+麦克风权限、音频内容、转写文本和日志按敏感输入处理。默认不记录原始音频、不把完整音频 URL/内容写日志；转写草稿只在前端内存和受控短期接口中存在，用户发送后才按普通消息保留策略处理。云端方案需要确认数据所在区域、供应商是否训练/留存、删除 SLA、加密、DPA 和跨境限制；自托管方案需要确认 GPU 环境、模型许可证、中文质量、并发和成本。
+
+验收覆盖：权限允许/拒绝、HTTPS 和浏览器兼容、开始/结束/取消、静音/噪声、过长/过大/不支持格式、上传和识别超时、云端/自托管失败、中文金额/日期/品牌/英文混说、用户编辑转写、用户未点击发送不产生 UserMessage、重复发送不重复事件、转写“直接执行”仍需要结构化确认，以及原始音频不进入 AgentState/消息/日志。语音识别准确率、中文专有名词召回、P95 延迟、失败率、成本和数据保留策略必须经 PoC/真实环境确认。
+
+语音能力分类为：本轮**只完成设计**；是否纳入第一阶段前端体验取决于 ASR PoC、合规和容量确认；当前不作为子阶段 2–4 的完成前置，也不引入语音克隆、TTS 或实时语音通话。
+
+## 17. 三项新增需求的实施边界与验收归属
+
+| 能力 | 本轮结论 | 实施时机 | 当前是否纳入代码验收 |
+|---|---|---|---|
+| 输入分流/意图提取 | 已确认设计；复用 `interpret_event` 最小调整为 dispatch，结构化事件绕过模型，proposal 经 validate 后才转 typed patch/query | LLM 自然语言能力接入时；子阶段 4 先用结构化事件 | 否，当前只完成设计 |
+| Vue3 表单回显 | 已确认推荐结构化 snapshot/patch + Vue reactive/Pinia；服务端 revision 权威，SSE/API 提供受控事件，Playwright 仅测试/外部适配 | 内部子阶段 4 前定协议；实施计划阶段 1 落事件基础、阶段 4 集成 Vue；内部子阶段 5 完成恢复/持久化 | 否，当前仓库无 Vue 实现 |
+| 语音转文字 | 已确认“录音→批量 ASR→输入框草稿→用户点击发送→普通 UserMessage”；云端/自托管需 PoC 和合规确认 | 本轮只设计；若纳入首阶段，需单独确认前端/ASR里程碑 | 否，不作为当前子阶段验收前置 |
+
+三项能力都不能改变既有边界：不绕过 patch、revision、confirmation、adapter 和 unknown 对账；不让模型/前端/ASR 直接修改权威业务状态；不让表单回显或语音转写自动提交业务操作。Playwright、KV Cache、通用插件、语音通话和复杂向量召回继续不进入当前实现范围。

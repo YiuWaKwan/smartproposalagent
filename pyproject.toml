@@ -9,13 +9,16 @@ description = "Smart Proposal Agent first-phase foundation"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115,<1",
+    "httpx>=0.28,<1",
     "langgraph>=1.0,<2",
+    "langgraph-checkpoint-postgres>=3.2,<4",
     "pydantic>=2.10,<3",
+    "psycopg[binary]>=3.2,<4",
     "uvicorn>=0.34,<1",
 ]
 
 [project.optional-dependencies]
-dev = ["httpx>=0.28,<1", "pytest>=8,<10"]
+dev = ["pytest>=8,<10"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]

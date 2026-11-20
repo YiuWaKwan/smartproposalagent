@@ -3,14 +3,75 @@
 from typing import Protocol
 from uuid import UUID
 
-from app.schemas.domain import ActorContext, CampaignDraft, RecommendationTaskDraft
+from app.schemas.business_api import (
+    AdapterError,
+    AdapterResponse,
+    CampaignDetails,
+    CampaignCreated,
+    CampaignCreateRequest,
+    OperationReceipt,
+    TaskCreated,
+    TaskCreateRequest,
+)
+from app.schemas.business_api import ActorScope
+from app.schemas.domain import ActorContext
+from app.schemas.domain.selection import SelectionReceipt
+from app.schemas.recommendation import (
+    JavaRecommendationResults,
+    JavaTask,
+    JavaTaskList,
+    RecommendationStartAccepted,
+    RecommendationReadRequest,
+    RecommendationStartRequest,
+    RecommendationSnapshotReference,
+)
+from app.schemas.selection import SelectionConfirmRequest, SelectionSaveRequest
 
 
 class BusinessServices(Protocol):
-    # TODO(adapter, design §2.5): replace these provisional signatures after the
-    # official identity, idempotency, request and response contracts are agreed.
-    async def create_campaign(self, actor: ActorContext, draft: CampaignDraft) -> int | str: ...
-    async def create_task(self, actor: ActorContext, campaign_id: int | str, draft: RecommendationTaskDraft) -> int | str: ...
+    """Typed adapter contract. It never decides whether an operation is authorized."""
+
+    async def create_campaign(
+        self, request: CampaignCreateRequest
+    ) -> AdapterResponse[CampaignCreated] | OperationReceipt: ...
+
+    async def create_task(
+        self, request: TaskCreateRequest
+    ) -> AdapterResponse[TaskCreated] | OperationReceipt: ...
+
+    async def read_campaign(
+        self, campaign_id: int, actor: ActorScope
+    ) -> AdapterResponse[CampaignDetails] | AdapterError: ...
+
+    async def start_recommendation(
+        self, request: RecommendationStartRequest
+    ) -> AdapterResponse[RecommendationStartAccepted] | OperationReceipt: ...
+
+    async def read_task(self, request: RecommendationReadRequest) -> AdapterResponse[JavaTask] | AdapterError: ...
+
+    async def list_tasks(self, request: RecommendationReadRequest) -> AdapterResponse[JavaTaskList] | AdapterError: ...
+
+    async def read_recommendation_results(
+        self, request: RecommendationReadRequest
+    ) -> AdapterResponse[JavaRecommendationResults] | AdapterError: ...
+
+    async def save_selection(self, request: SelectionSaveRequest) -> SelectionReceipt: ...
+
+    async def confirm_selection(self, request: SelectionConfirmRequest) -> SelectionReceipt: ...
+
+
+class RecommendationSnapshotStore(Protocol):
+    """Storage port; a volatile implementation is only a local placeholder."""
+
+    def put(self, reference: RecommendationSnapshotReference, results: JavaRecommendationResults) -> None: ...
+
+    def get_reference(self, snapshot_ref: UUID) -> RecommendationSnapshotReference | None: ...
+
+    def get_results(self, snapshot_ref: UUID) -> JavaRecommendationResults | None: ...
+
+
+class RecommendationSnapshotRepository(RecommendationSnapshotStore, Protocol):
+    """Durable snapshot store port for a future Java-confirmed blob/database adapter."""
 
 
 class ConversationRepository(Protocol):

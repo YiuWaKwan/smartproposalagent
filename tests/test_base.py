@@ -15,7 +15,7 @@ def test_health_and_main_graph_chain() -> None:
         assert client.get("/health").json() == {"status": "ok", "workflow": "not_implemented"}
         graph = client.app.state.workflow.graph
         assert "wait_for_selection_confirmation" in graph.get_graph().nodes
-        with pytest.raises(WorkflowNotImplemented, match="prepare_context"):
+        with pytest.raises(ValueError, match="missing incoming_event"):
             graph.invoke({"draft": WorkflowDraft(task_id=uuid4())})
 
 

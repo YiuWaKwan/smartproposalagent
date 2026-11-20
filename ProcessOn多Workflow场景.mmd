@@ -1,0 +1,11 @@
+flowchart LR
+  S([同一个会话]) --> A1[当前交互：任务A<br/>workflow A]
+  A1 --> M1[用户消息1：预算改成20万]
+  M1 --> A2[workflow A处理并保存<br/>任务A预算更新为20万]
+  A2 --> M2[用户消息2：新建活动2]
+  M2 --> B1[创建新的 workflow B<br/>对应活动2]
+  B1 --> B2[切换当前交互对象到 workflow B]
+  B2 --> M3[用户消息3：继续任务A]
+  M3 --> FIND_A[查找并校验 workflow A 的访问权限]
+  FIND_A --> A3[切换当前交互对象回 workflow A<br/>恢复任务A上次的资料和进度]
+  A3 --> END([继续处理任务A])

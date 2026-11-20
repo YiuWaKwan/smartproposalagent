@@ -1,0 +1,62 @@
+flowchart TD
+  START([用户发送一条消息]) --> SESSION[读取当前会话<br/>会话中可以包含多个 workflow<br/>读取当前交互 workflow]
+  SESSION --> TARGET{确定这条消息的处理目标}
+
+  TARGET -->|处理当前 workflow| CURRENT[选择当前交互 workflow]
+  TARGET -->|用户明确要求新建| CREATE[创建新的 workflow]
+  CREATE --> ACTIVATE_NEW[将新 workflow 设为当前交互对象<br/>保留其他 workflow 的资料和进度]
+  TARGET -->|用户明确要求切换| FIND[查找指定的已有 workflow]
+  FIND --> AUTH{校验当前用户是否有权访问}
+  AUTH -->|有权限| ACTIVATE_OLD[切换到指定 workflow<br/>恢复该 workflow 的资料和进度]
+  AUTH -->|无权限或不存在| DENY[提示无法访问该 workflow]
+  TARGET -->|目标不明确| CLARIFY[向用户澄清要处理的活动或任务]
+
+  CURRENT --> ROUTE[将这条消息路由给一个明确的 workflow]
+  ACTIVATE_NEW --> ROUTE
+  ACTIVATE_OLD --> ROUTE
+  DENY --> END([本条消息结束])
+  CLARIFY --> END
+
+  ROUTE --> CTX[加载当前 workflow 的资料、进度和规则<br/>代码：prepare_context]
+  CTX --> EVENT[识别用户请求或自然语言意图<br/>代码：interpret_event]
+  EVENT --> KIND{判断请求类型<br/>代码：_event_route}
+
+  KIND -->|普通资料修改或确认| APPLY[记录用户的修改或确认<br/>代码：apply_event]
+  APPLY --> VALIDATE[检查资料并决定下一步<br/>代码：validate_and_route]
+  VALIDATE --> NEXT{确定后续动作<br/>代码：route_after_validation}
+  NEXT -->|资料需要补充| WAIT[暂停当前 workflow<br/>等待用户补充<br/>代码：wait_for_user]
+  WAIT --> SAVE_WAIT[保存当前 workflow 的暂停状态]
+  NEXT -->|业务操作需要确认| OP_PREVIEW[整理业务操作内容供用户核对<br/>代码：prepare_operation_preview]
+  NEXT -->|启动推荐前需确认| REC_PREVIEW[整理推荐任务信息供用户确认<br/>代码：prepare_recommendation_preview]
+  NEXT -->|通过检查| RESERVE[登记待继续处理的操作<br/>代码：reserve_business_operation]
+  NEXT -->|无后续动作| SAVE[保存当前 workflow 的最新状态]
+  OP_PREVIEW --> SAVE
+  RESERVE --> SAVE
+
+  KIND -->|启动推荐请求| REC_PREVIEW
+  KIND -->|推荐确认或进度查询| REC_EXEC[处理推荐确认或轮询请求<br/>代码：execute_recommendation_operation]
+  KIND -->|查看候选名单| SEL_REVIEW[准备候选名单供审阅<br/>代码：wait_for_selection_confirmation]
+  KIND -->|编辑候选名单| SEL_EDIT[修改待确认的名单<br/>代码：edit_selection_draft]
+  KIND -->|保存名单| SEL_SAVE[检查名单保存条件<br/>代码：check_selection_save]
+  KIND -->|确认最终名单| SEL_CONFIRM[检查最终确认信息<br/>代码：check_final_selection_confirmation]
+
+  REC_PREVIEW --> JAVA_TASK["通过适配器读取 Java Task 详情<br/>GET /api/campaigns/{campaignId}/tasks/{taskId}"]
+  JAVA_TASK --> REC_CARD[返回推荐确认内容]
+  REC_CARD --> SAVE
+  REC_EXEC --> REC_EVENT{推荐操作类型}
+  REC_EVENT -->|用户确认启动| JAVA_START["通过适配器请求 Java 启动推荐<br/>POST /api/campaigns/{campaignId}/tasks/{taskId}/recommend"]
+  JAVA_START --> JAVA_ACCEPT["Java 返回已受理<br/>本轮结束，后续单独查询进度"]
+  JAVA_ACCEPT --> SAVE
+  REC_EVENT -->|查询推荐进度| JAVA_POLL["通过适配器查询 Java Task 状态<br/>GET /api/campaigns/{campaignId}/tasks/{taskId}"]
+  JAVA_POLL -->|仍在处理中| SAVE
+  JAVA_POLL -->|推荐完成| JAVA_RESULT["通过适配器读取候选结果<br/>GET /api/campaigns/{campaignId}/tasks/{taskId}/results"]
+  JAVA_RESULT --> RESULT[整理候选展示数据并保存结果引用]
+  RESULT --> SAVE
+
+  SEL_REVIEW --> SAVE
+  SEL_EDIT --> SAVE
+  SEL_SAVE --> SAVE
+  SEL_CONFIRM --> SAVE
+  SAVE_WAIT --> IDLE[当前 workflow 可暂停<br/>其他 workflow 保持独立]
+  SAVE --> IDLE
+  IDLE --> END

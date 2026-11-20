@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ELI5 · 一张图看懂 graph.py</title>
+<style>
+  :root{
+    --ink:#1f2937; --muted:#6b7280; --paper:#fffdf6;
+    --green:#16a34a; --green-bg:#eafbf0; --green-line:#8ae0a8;
+    --amber:#c2740b; --amber-bg:#fff7e4; --amber-line:#fcd34d;
+    --red:#dc2626;   --red-bg:#fdeeee;   --red-line:#f7b4b4;
+    --arrow:#f59e0b;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0; padding:56px 24px 96px;
+    background:
+      radial-gradient(900px 420px at 12% -8%, #fff2cf 0%, transparent 60%),
+      radial-gradient(760px 380px at 92% 2%, #e6f4ff 0%, transparent 55%),
+      var(--paper);
+    color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{ max-width:1180px; margin:0 auto; }
+
+  /* ---------- 开场 ---------- */
+  .kicker{
+    display:inline-block; font-size:13px; font-weight:800; letter-spacing:2px;
+    color:#a16207; background:#fef3c7; border:2px solid #fde68a;
+    padding:6px 14px; border-radius:999px; margin-bottom:22px;
+  }
+  h1{
+    margin:0 0 22px; font-size:clamp(30px, 5vw, 54px); line-height:1.28; letter-spacing:-1px;
+    font-weight:800;
+  }
+  h1 .hl{
+    background:linear-gradient(180deg, transparent 62%, #ffe08a 62%, #ffe08a 92%, transparent 92%);
+    padding:0 4px;
+  }
+  .lead{
+    margin:0; font-size:clamp(16px, 2vw, 20px); line-height:1.85; color:#4b5563; max-width:760px;
+  }
+  .lead b{ color:var(--ink); }
+  code{ font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:.92em;
+        background:#f1f3f6; border-radius:6px; padding:2px 7px; color:#334155; }
+
+  /* ---------- 区块标题 ---------- */
+  section{ margin-top:78px; }
+  h2{
+    display:flex; align-items:center; gap:14px;
+    margin:0 0 10px; font-size:clamp(20px, 2.6vw, 28px); font-weight:800; letter-spacing:-.4px;
+  }
+  h2 .n{
+    flex:0 0 auto; width:44px; height:44px; border-radius:50%;
+    background:var(--ink); color:#fff; font-size:20px;
+    display:grid; place-items:center; font-weight:800;
+  }
+  .hint{ margin:0 0 26px 58px; font-size:16px; color:var(--muted); line-height:1.7; }
+
+  /* ---------- 主干流水线 ---------- */
+  .line{
+    display:flex; align-items:stretch; justify-content:center; gap:6px; flex-wrap:wrap;
+    padding:26px 18px; border-radius:28px;
+    background:
+      repeating-linear-gradient(90deg,#fff5d6 0 22px,#ffeab8 22px 44px);
+    border:3px dashed #f3d27a;
+  }
+  .card{
+    flex:1 1 176px; min-width:164px; max-width:220px;
+    background:#fff; border-radius:22px; padding:20px 14px 18px;
+    text-align:center; border:3px solid var(--ink);
+    box-shadow:0 6px 0 rgba(31,41,55,.12);
+    transition:transform .18s ease, box-shadow .18s ease;
+  }
+  .card:hover{ transform:translateY(-5px); box-shadow:0 12px 0 rgba(31,41,55,.14); }
+  .card .ico{ font-size:56px; line-height:1.05; }
+  .card .t{ margin-top:12px; font-size:19px; font-weight:800; letter-spacing:-.2px; }
+  .card .d{ margin-top:6px; font-size:13px; line-height:1.6; color:var(--muted); }
+  .card .c{ margin-top:10px; font-size:11px; font-family:ui-monospace, Menlo, monospace; color:#9ca3af; }
+
+  .card.ok   { background:var(--green-bg); border-color:var(--green-line); }
+  .card.warn { background:var(--amber-bg); border-color:var(--amber-line); }
+  .card.bad  { background:var(--red-bg);   border-color:var(--red-line); }
+  .card.gate { background:#1f2937; border-color:#1f2937; color:#fff; }
+  .card.gate .d, .card.gate .c{ color:#cbd5e1; }
+
+  .arrow{ flex:0 0 40px; align-self:center; width:40px; height:20px; }
+  .arrow path{ fill:var(--arrow); }
+
+  /* ---------- 岔路口 ---------- */
+  .grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(205px,1fr)); gap:16px; }
+  .door{
+    background:#fff; border:3px solid var(--green-line); border-radius:24px;
+    padding:22px 20px; position:relative;
+    box-shadow:0 6px 0 rgba(31,41,55,.08);
+  }
+  .door.warn{ border-color:var(--amber-line); background:var(--amber-bg); }
+  .door.bad{ border-color:var(--red-line); background:var(--red-bg); }
+  .door .ico{ font-size:50px; line-height:1; }
+  .door .t{ margin-top:12px; font-size:19px; font-weight:800; }
+  .door .d{ margin-top:6px; font-size:13.5px; line-height:1.65; color:#4b5563; }
+  .door .c{ margin-top:12px; font-size:10.5px; line-height:1.6; font-family:ui-monospace, Menlo, monospace; color:#9ca3af; overflow-wrap:anywhere; }
+  .tag{
+    position:absolute; top:14px; right:14px;
+    font-size:11px; font-weight:800; padding:4px 10px; border-radius:999px;
+    background:#dcfce7; color:#15803d;
+  }
+  .door.warn .tag{ background:#fef3c7; color:#a16207; }
+  .door.bad  .tag{ background:#fee2e2; color:#b91c1c; }
+  .door.gate .tag{ background:#e5e7eb; color:#374151; }
+
+  /* ---------- 近路 ---------- */
+  .shortcut{
+    margin-top:18px; display:flex; align-items:center; justify-content:center; gap:22px; flex-wrap:wrap;
+    background:#fff8e8; border:3px dashed #fcd34d; border-radius:24px; padding:20px 22px;
+  }
+  .sc-txt{ flex:0 1 340px; font-size:15.5px; font-weight:800; color:#a16207; line-height:1.75; }
+  .sc-txt span{ display:block; font-weight:500; font-size:13.5px; color:#b45309; margin-top:2px; }
+  .shortcut .door{ flex:0 0 340px; margin:0; }
+
+  /* ---------- 空房间 ---------- */
+  .rooms{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px;
+    padding:22px; border-radius:26px;
+    background:repeating-linear-gradient(135deg,#f7f7f8 0 14px,#f2f2f4 14px 28px);
+    border:3px dashed #cbd5e1;
+  }
+  .room{
+    background:#fff; border:2.5px dashed #cbd5e1; border-radius:18px;
+    padding:18px 14px; text-align:center; opacity:.92;
+  }
+  .room .ico{ font-size:40px; filter:grayscale(1); opacity:.7; }
+  .room .t{ margin-top:8px; font-size:15.5px; font-weight:800; color:#4b5563; }
+  .room .c{ margin-top:6px; font-size:10px; line-height:1.5; font-family:ui-monospace, Menlo, monospace; color:#b0b7c3; overflow-wrap:anywhere; }
+
+  /* ---------- 结论 ---------- */
+  .two{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:760px){ .two{ grid-template-columns:1fr; } }
+  .box{
+    border-radius:26px; padding:28px 30px; border:3px solid;
+  }
+  .box h3{ margin:0 0 14px; font-size:20px; font-weight:800; display:flex; align-items:center; gap:10px; }
+  .box ul{ margin:0; padding-left:0; list-style:none; }
+  .box li{ font-size:16.5px; line-height:2; color:#374151; }
+  .box li::before{ content:"·"; margin-right:10px; color:#9ca3af; font-weight:800; }
+  .box.yes{ background:var(--green-bg); border-color:var(--green-line); }
+  .box.no { background:var(--red-bg);   border-color:var(--red-line); }
+
+  footer{
+    margin-top:70px; padding-top:26px; border-top:2px dashed #e5e7eb;
+    font-size:14px; color:var(--muted); line-height:1.9;
+  }
+  footer code{ background:#f3f4f6; padding:2px 7px; border-radius:6px; font-size:13px; }
+  footer a{ color:#2563eb; text-decoration:none; font-weight:600; }
+  footer a:hover{ text-decoration:underline; }
+
+  .down{ display:flex; justify-content:center; margin:34px 0 -22px; }
+  .down svg{ width:36px; height:52px; }
+  .down path{ fill:#f3d27a; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">ELI5 · 一张图看懂</div>
+    <h1>这条流水线只干一件事：<br><span class="hl">你说一句话，它替你建好活动</span>。</h1>
+    <p class="lead">
+      <code>graph.py</code> 就是它的<strong>路线图</strong>，上面有 15 个工位。<br>
+      但真正能上岗干活的，只有 <strong>8 个</strong>。
+    </p>
+  </header>
+
+  <!-- ========== 1. 主干 ========== -->
+  <section>
+    <h2><span class="n">1</span>主干道：5 个工位</h2>
+    <p class="hint">客人从左边进来，沿着传送带走。</p>
+
+    <div class="line">
+      <div class="card gate">
+        <div class="ico">🚪</div>
+        <div class="t">进门</div>
+        <div class="d">流程从这里开始</div>
+        <div class="c">START</div>
+      </div>
+      <svg class="arrow" viewBox="0 0 60 24"><path d="M0 8h36V1l24 11-24 11v-7H0z"/></svg>
+
+      <div class="card ok">
+        <div class="ico">📋</div>
+        <div class="t">拿张白纸</div>
+        <div class="d">备好一张空表单</div>
+        <div class="c">prepare_context</div>
+      </div>
+      <svg class="arrow" viewBox="0 0 60 24"><path d="M0 8h36V1l24 11-24 11v-7H0z"/></svg>
+
+      <div class="card ok">
+        <div class="ico">👂</div>
+        <div class="t">听你说</div>
+        <div class="d">你是要改表、确认，还是要推荐？</div>
+        <div class="c">interpret_event</div>
+      </div>
+      <svg class="arrow" viewBox="0 0 60 24"><path d="M0 8h36V1l24 11-24 11v-7H0z"/></svg>
+
+      <div class="card ok">
+        <div class="ico">✍️</div>
+        <div class="t">写下来</div>
+        <div class="d">把你说的话填进表单</div>
+        <div class="c">apply_event</div>
+      </div>
+      <svg class="arrow" viewBox="0 0 60 24"><path d="M0 8h36V1l24 11-24 11v-7H0z"/></svg>
+
+      <div class="card ok">
+        <div class="ico">🧭</div>
+        <div class="t">看下一步</div>
+        <div class="d">表填全了吗？接着去哪？</div>
+        <div class="c">validate_and_route</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="down"><svg viewBox="0 0 36 52"><path d="M14 0h8v34h9L18 52 5 34h9z"/></svg></div>
+
+  <!-- ========== 2. 岔路口 ========== -->
+  <section>
+    <h2><span class="n">2</span>第 5 个工位是岔路口：5 条路</h2>
+    <p class="hint">看表填到什么程度，走不同的门。</p>
+
+    <div class="grid">
+      <div class="door bad">
+        <span class="tag">门是锁的</span>
+        <div class="ico">⏸️</div>
+        <div class="t">等你想清楚</div>
+        <div class="d">表没填全，就先停下来问你 —— 可这条路一推就报错。</div>
+        <div class="c">wait_for_user</div>
+      </div>
+
+      <div class="door">
+        <span class="tag">能用</span>
+        <div class="ico">🧾</div>
+        <div class="t">先看小票</div>
+        <div class="d">把要下的单先给你过目，你点头才算。</div>
+        <div class="c">prepare_operation_preview</div>
+      </div>
+
+      <div class="door warn">
+        <span class="tag">要接外挂</span>
+        <div class="ico">🛒</div>
+        <div class="t">真的下单</div>
+        <div class="d">把活动、任务真正建出来。</div>
+        <div class="c">reserve_<wbr>business_<wbr>operation</div>
+      </div>
+
+      <div class="door warn">
+        <span class="tag">要接外挂</span>
+        <div class="ico">🔍</div>
+        <div class="t">先看推荐</div>
+        <div class="d">看一眼任务，给你一份「推荐谁」的预览。</div>
+        <div class="c">prepare_<wbr>recommendation_<wbr>preview</div>
+      </div>
+
+      <div class="door">
+        <span class="tag">收工</span>
+        <div class="ico">🏁</div>
+        <div class="t">走人</div>
+        <div class="d">这次就到这儿。</div>
+        <div class="c">END</div>
+      </div>
+    </div>
+
+    <div class="shortcut">
+      <div class="sc-txt">
+        ↪️ 还有一条近路：不用走岔路口
+        <span>直接在「听你说」那一步，就能把人送进下面这扇门。</span>
+      </div>
+      <div class="door warn">
+        <span class="tag">要接外挂</span>
+        <div class="ico">🚀</div>
+        <div class="t">直接开跑</div>
+        <div class="d">启动推荐、查进度，结果回来就先存起来。</div>
+        <div class="c">execute_<wbr>recommendation_<wbr>operation</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 3. 空房间 ========== -->
+  <section>
+    <h2><span class="n">3</span>图上还画了 6 个空房间</h2>
+    <p class="hint">门牌挂好了，可没有任何一条路能走进去 —— 里面还是空地。</p>
+
+    <div class="rooms">
+      <div class="room"><div class="ico">🏃</div><div class="t">跑推荐</div><div class="c">run_recommendation</div></div>
+      <div class="room"><div class="ico">🎯</div><div class="t">挑达人</div><div class="c">select_candidates</div></div>
+      <div class="room"><div class="ico">🙋</div><div class="t">等你点头</div><div class="c">wait_for_<wbr>selection_<wbr>confirmation</div></div>
+      <div class="room"><div class="ico">📒</div><div class="t">先记账</div><div class="c">reserve_<wbr>selection_<wbr>confirmation</div></div>
+      <div class="room"><div class="ico">📮</div><div class="t">交作业</div><div class="c">submit_<wbr>confirmed_<wbr>selection</div></div>
+      <div class="room"><div class="ico">🎁</div><div class="t">打包结果</div><div class="c">format_result</div></div>
+    </div>
+  </section>
+
+  <!-- ========== 4. 结论 ========== -->
+  <section>
+    <h2><span class="n">4</span>所以，现在能干嘛？</h2>
+    <p class="hint">一句话：能「填表、看小票、下单」，还不能「真去找人」。</p>
+
+    <div class="two">
+      <div class="box yes">
+        <h3>✅ 现在就能跑</h3>
+        <ul>
+          <li>拿表 → 听你说 → 写下来 → 检查</li>
+          <li>给你看「要下的单」长什么样</li>
+          <li>你点头后，真的把活动 / 任务建出来</li>
+          <li>给你看一份「推荐开始前」的预览</li>
+        </ul>
+      </div>
+      <div class="box no">
+        <h3>🚧 还不行</h3>
+        <ul>
+          <li>自动把推荐跑完、等结果回来</li>
+          <li>从结果里挑达人</li>
+          <li>让你最终确认选哪几个</li>
+          <li>把选好的人交回去、打包成界面</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    🧩 这就是 <code>app/graphs/campaign/graph.py</code> 画的整张图：<b>15 个工位、24 条连线</b>，
+    其中 6 个工位是空房间。<br>
+    📐 想看带代码位置、路由键、死链路的详细版？→
+    <a href="campaign-graph-flow.html">打开《Campaign Graph 流程图》</a>
+  </footer>
+
+</div>
+</body>
+</html>

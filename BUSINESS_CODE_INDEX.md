@@ -48,7 +48,7 @@ flowchart LR
 | [DouyinProposalRetrofit.java](</Users/huajun.yao/Documents/work/cn-buycoor-SocialSeedsManagement-SmartProposal-backend-main/src/main/java/com/buycoor/digital/social/proposal/retrofit/DouyinProposalRetrofit.java>) | 下游接口声明与超时/认证 | `POST api/tasks` → `POST api/tasks/{task_id}/execute` → `GET .../progress` / `GET .../result`；`POST api/presets/campaign`；Bearer token 注解。连接/读/写 timeout 配为 5 分钟。 |
 | [RecommendationPollingJobHandler.java](</Users/huajun.yao/Documents/work/cn-buycoor-SocialSeedsManagement-SmartProposal-backend-main/src/main/java/com/buycoor/digital/social/proposal/job/RecommendationPollingJobHandler.java>) | XXL Job `recommendationPollingJobHandler` 每 30 秒轮询 Java IN_PROGRESS 且有下游 ID 的任务 | progress 0–1 转百分比；completed 后 query result，将结果 JSON 存 `kol_result`，更新 recommendCount、100% 和 RECOMMEND_COMPLETED；failed 则转 FAILED。Agent 可通过 Java task list/detail/results 读业务状态，不应另造并行推荐状态。 |
 | [RecommendationServiceImpl.java](</Users/huajun.yao/Documents/work/cn-buycoor-SocialSeedsManagement-SmartProposal-backend-main/src/main/java/com/buycoor/digital/social/proposal/service/impl/RecommendationServiceImpl.java>) | 从结果 JSON、圈选表、风险表构建结果 VO 与 summary；实现圈选记录 | `source` 来自 recommend/backup/lookalike；用户选择是另一张 selection 表，不等于模型 shortlist。summary 的 `shortlistCount` 是用户已选数；预算/指标仅对用户已选者汇总。 |
-| [SelectionConfirmServiceImpl.java](</Users/huajun.yao/Documents/work/cn-buycoor-SocialSeedsManagement-SmartProposal-backend-main/src/main/java/com/buycoor/digital/social/proposal/service/impl/SelectionConfirmServiceImpl.java>) | `confirm` 在 `@Transactional(rollbackFor=Exception.class)` 中先 `selectKol` 再 `finishTasks`，最后返回活动已选 KOL 分组 | 这是代码中明确的“圈选 + 封板”原子业务操作；调用前仍需业务确认它是否为 Agent 最终确认的产品入口，并核对回执、重复提交及失败重放策略。Agent 最终确认应考虑该 API，不能把普通 `batch-select` 当封板。 |
+| [SelectionConfirmServiceImpl.java](</Users/huajun.yao/Documents/work/cn-buycoor-SocialSeedsManagement-SmartProposal-backend-main/src/main/java/com/buycoor/digital/social/proposal/service/impl/SelectionConfirmServiceImpl.java>) | `confirm` 在 `@Transactional(rollbackFor=Exception.class)` 中先 `selectKol` 再 `finishTasks`，最后返回活动已选 KOL 分组 | Agent 采用该原子操作的语义作为最终封板入口；真实回执、版本校验、重复提交和失败重放仍待签收。普通 `batch-select` 仅保存圈选。 |
 | [SelectionRequestDTO.java](</Users/huajun.yao/Documents/work/cn-buycoor-SocialSeedsManagement-SmartProposal-backend-main/src/main/java/com/buycoor/digital/social/proposal/dto/task/SelectionRequestDTO.java>)、[SelectionConfirmRequestDTO.java](</Users/huajun.yao/Documents/work/cn-buycoor-SocialSeedsManagement-SmartProposal-backend-main/src/main/java/com/buycoor/digital/social/proposal/dto/task/SelectionConfirmRequestDTO.java>) | 圈选/确认载荷 | `items[]: {taskId,kols[]}`；每 KOL 条目由 `kolBackendId/selected/rejected/rejectReason` 决定 select/cancel/reject，同一请求可混合操作。确认请求继承相同结构。 |
 
 ### 关键外部接口映射
@@ -113,7 +113,7 @@ flowchart LR
 ## 已知契约差异 / 待确认项
 
 1. UAT 观察到 Java API 业务响应 `code=200,data=<id>`，但 Agent 接入需同时检查 HTTP 与 envelope；Java `CampaignCreateDTO` 的 required annotation 与 UAT UI 必填标记存在差异，最终以服务校验和产品决策共同确定澄清行为。
-2. `POST .../tasks/batch-select` 是逐 KOL select/cancel/reject 的持久化圈选操作并写历史；它不是“未保存到服务端的草稿”。Java 已有 `POST .../tasks/batch-confirm-selection`，在单事务中圈选并封板所涉任务为 ended。代码行为已明确；仍需产品/业务确认这是否就是 Agent 最终确认入口，并核对其业务回执、重复提交及失败重放策略。
+2. `POST .../tasks/batch-select` 是逐 KOL select/cancel/reject 的持久化圈选操作并写历史；Agent 本地草稿不会调用它。Agent 已选定 `POST .../tasks/batch-confirm-selection` 语义作为最终入口；Java 在单事务中圈选并将所涉任务置为 ended。真实业务回执、重复提交、失败与对账策略仍需 Java/UAT 签收。
 3. Java Retrofit 将 HTTP 网络调用、数据库状态变更分开；下游 create 成功但 execute/响应超时的 unknown 及幂等恢复需查具体客户端拦截器和现有补偿任务。不要在新 Agent 里盲目重试。
 4. 结果是否涵盖全部参与候选，要以 Java 保存的完整下游 result JSON 和 Python `quantity_target` 逻辑核对；不能把页面默认展示数、downstream requested count 或 `shortlistCount` 当候选 total。
 5. 当前项目实现应通过 Java SmartProposal API 编排已有服务，除非架构 owner 明确批准直接调用 Python；避免 Agent 直接操作两个业务数据库或绕过 Java 的任务状态机/圈选事务。
@@ -129,4 +129,45 @@ flowchart LR
 - `app/workers/` 与 `app/repositories/`：推荐 polling/unknown 对账、会话事件及幂等台账；不另存 Java 已有业务真相。
 - `app/prompts/`：Campaign/任务抽取与澄清只产生经过 Pydantic 验证的 patch；不能生成自由 API URL、品牌权限或确认状态。
 
-以上是后续代码落点建议，不表示这些模块已实现。生成前复核各源码当前分支、Java controller 的部署路径和未决的最终确认契约。
+以上落点已部分实现，现状见以下对照；尚未完成的外部契约不得视为已实现。生成前/联调前复核所用源码分支、Java controller 部署路径与认证/幂等契约。
+
+### 子阶段 2 Python Adapter 对照（本地实现，未完成外部联调）
+
+| Java 业务契约（源码快照） | Python 实现 | 当前已验证 | 未验证/阻塞 |
+|---|---|---|---|
+| `POST /api/campaigns` → `BaseResponseEntity<Long>`；`CampaignCreateDTO` 的请求字段含 `brandName/platform/type/budget/product/sellingPoint/competitors/startDate/endDate/persona/emotion/coreSellingPoint`，部分必填见 Java DTO | `app/schemas/business_api.py::CampaignCreatePayload/CampaignCreateRequest`、`app/services/adapters/smartproposal.py::campaign_payload_from_draft/create_campaign` | 字段别名、Decimal/date、None 省略、canonical hash、envelope `code/data` 映射和 typed ID 用 MockTransport fixture 验证 | UAT/部署地址、HTTP 与业务错误真实组合、认证和真实 brand directory、Java 对自定义 headers 是否支持、幂等与请求 ID 对账 |
+| `GET /api/campaigns/{id}` → CampaignVO detail，已有 Campaign 需经服务端读取/授权 | `SmartProposalAdapter.read_campaign`、`CampaignDetails`，创建 Task 前 graph 节点核对 Campaign ID、brand name/code | detail 结构、ID 和品牌不匹配时不会走 Task create；只读请求需要显式配置身份 header contract | CampaignVO 的 `brandCode` 是否确实被 Jackson 输出、部署下的身份传递与对象级权限行为尚未通过 API/UAT 验证；不匹配/缺字段即安全阻断 |
+| `POST /api/campaigns/{campaignId}/tasks` → `BaseResponseEntity<Long>`；平台从 Campaign 继承，必填字段见 `TaskCreateDTO` | `TaskCreatePayload/TaskCreateRequest`、`task_payload_from_draft/create_task`，Campaign Task operation 分别确认 | camelCase、整数数量、Decimal 预算、path ID 和 Java Long 型业务 ID 解析用本地 fixture 验证 | 真服务 schema/Bean Validation、业务权限、重复请求语义和写后查询对账 |
+| Java 错误 `BaseResponseEntity`，GlobalExceptionHandler 对业务异常可 HTTP 200 返回业务 code；controller 的正常 create 返回 HTTP 200 wrapper | `JavaEnvelope`、`AdapterError`、`OperationReceipt`、`OperationStatus` | Mock 覆盖 HTTP 非 2xx、业务 code 非 200、无 data、非法 envelope/ID、连接/超时；adapter 不泄露原始 body、不自动重试 | 具体 Java/Venus 版本、gateway HTTP error body 和响应兼容需测试服务/UAT 核实 |
+
+本地 graph 要求 Campaign create 与 Task create 各自经过独立 `BusinessOperationConfirmation`，确认绑定 `task_id + actor scope + operation_id + form_revision + payload_hash + confirmation_id`。已有 Campaign 选择 ID 本身不是授权，执行 Task create 前必须读取 detail 并核实当前品牌。复盘第 9 节的“所有业务写入/启动都显式确认”作为当前实现约束；真实写操作仍被 config contract gate 禁止。
+
+当前 Java 源码中未检出 create controller 的 operation/idempotency header、按 request ID 查询或 unknown reconciliation endpoint。Python adapter 所配置的头是待 Java owner 签收的传输契约，不构成服务端已支持幂等的证据；contract flags 任一缺失时不会发起 HTTP 写请求。operation 状态仅存在 workflow draft，不是子阶段 5 的持久化台账。
+
+### 子阶段 3 Recommend/Task/results 对照（本地实现，未完成真实联调）
+
+| Java 业务契约（源码快照） | Python 实现 | 当前已验证 | 未验证/阻塞 |
+|---|---|---|---|
+| `POST /api/campaigns/{campaignId}/tasks/{taskId}/recommend` 无请求体；HTTP/业务成功只表示 Java 已受理，后续由 Java polling job 读取下游进度和结果 | `RecommendationStartRequest`、`SmartProposalAdapter.start_recommendation`、`execute_recommendation_operation`；独立 preview/confirmation 后单次 bodyless POST，返回 `accepted` | MockTransport 验证路径、无 body、actor/operation/request/idempotency headers、成功受理与 timeout unknown；重复启动在本地状态机被阻断 | Java 部署 base path、Venus OAuth 委托身份、服务端 header/幂等/按 request ID 对账能力和真实 recommend 写链路 |
+| `GET /api/campaigns/{campaignId}/tasks`、`GET /api/campaigns/{campaignId}/tasks/{taskId}` 返回 TaskVO 的 status/progress/currentStage/downstreamTaskId | `JavaTask`、`read_task/list_tasks`、Task 归属校验、`apply_task_poll` 状态映射和 poll sequence 防乱序 | pending/in_progress/recommend_completed/failed/ended/unknown、downstream ID 绑定、重复/乱序 poll、有限读取失败和 unknown 恢复决策有本地测试 | Java 真实响应字段/HTTP 错误、对象级授权、部署链路、跨进程 worker/lease/checkpoint |
+| `GET /api/campaigns/{campaignId}/tasks/{taskId}/results` 返回 `summary + kols[]`；`kolDetail` 含大型/不可信字段 | `JavaRecommendationResults`、结果大小/候选数量限制、`validate_results_and_make_snapshot`、最多 20 条安全字段 `CandidateProjection` 和 `RecommendationSnapshotReference` | 仅 completed 后读结果、operation/request/downstream 绑定、重复 ID 拒绝、理由截断、非 HTTPS URL 丢弃、volatile 引用和 typed errors | 源码未证明候选全集、分页、总数、稳定 snapshot/version/hash、不可变结果读取或 Java 持久化能力；不能声称 projection 是完整候选池 |
+
+推荐本地调用链为：`recommendation.start_requested` 只读 Task 并产生独立确认卡；`recommendation.confirm` 重新读取 pending Task 后才允许一次 recommend POST；`recommendation.poll` 只读，不会触发 recommend POST；只有 Task 映射到 `recommend_completed` 后才读取 results。Recommend gate 另外检查 confirmation ID、form revision、payload hash header 是否配置，缺任一项零 HTTP；本地发送头映射不证明 Java 服务端支持或校验。
+
+当前 `VolatileRecommendationSnapshotStore` 是进程内测试实现，不是 Java 结果快照、数据库、LangGraph checkpointer、Outbox 或 worker。写结果 unknown 时只允许查询/人工对账，不能依据旧 pending 状态自动重新 recommend。真实 Java identity、幂等、对账和结果完整性契约签收前，recommend contract gate 默认关闭；本轮没有执行真实请求。
+
+字段 patch 当前语义：未提供字段不出现在 patch；`set` 必须提供非 null value（空字符串为显式值）；`set null` 拒绝以避免含糊；`clear` 写 None 并记录 suppressed default；`use_default` 清除当前覆盖并解除 suppression，但没有外部默认解析服务，不会生成值。Task 未补齐字段时 Campaign 仍可单独进入 Campaign create 确认；Campaign 创建成功后 Task 字段缺失进入澄清，不启动 Task create。
+
+### 子阶段 4 Results/Selection 对照（本地实现，真实写入关闭）
+
+| Java 源码事实 | Agent 本地边界 | 待签收 |
+|---|---|---|
+| `RecommendationServiceImpl.getResults` 将存储的 `kols` 与已有圈选记录合并；响应为 `summary + kols[]` | `CandidateProjection` 分开已读取条数、预览条数、截断和未知全集总数；本地页只翻已读取的响应。AI recommend/backup、Java 圈选状态和本地 draft 分开 | 全集、权威 total/cursor、稳定 snapshot/version、外部修改检测。Agent UUID/hash 不能充当 Java 版本 |
+| `TaskController.batchSelect` 使用 `SelectionRequestDTO`，接受 `items[{taskId,kols[{kolBackendId,selected,rejected,rejectReason}]}]`，持久化逐条操作并追加历史；成功无业务数据 | `SelectionSaveRequest` 保留字符串 ID 和选择、取消、拒绝语义；一个请求仅绑定一个 Task；`SmartProposalAdapter.save_selection` 只返回 blocked，零 HTTP | 正式保存授权、对象级权限、真实回执、写入幂等和对账 |
+| `TaskController.batchConfirmSelection` 使用继承同形状的 `SelectionConfirmRequestDTO`；`SelectionConfirmServiceImpl.confirm` 同事务调用 `selectKol` 和 `finishTasks`，返回 Campaign 下的已选 KOL 任务分组 | `confirm_selection` 绑定对应名单卡、actor、workflow/Campaign/Task/run、snapshot、revision 和 payload hash；`SelectionConfirmRequest` 与 save 分开，`SmartProposalAdapter.confirm_selection` 硬关闭 | Java DTO 未声明 snapshot/revision 校验；待核实服务端校验方案、重复回执、ended 状态、幂等、request ID unknown 对账；未把真实 Campaign 分组响应当成已验收的封板回执 |
+
+两条 selection 路由均在本地结束。完整 fixture 只供参数与状态测试，不开放真实写入；未发送真实 `batch-select` 或 `batch-confirm-selection` 请求。
+
+### 子阶段 5 持久化映射（部分实现）
+
+Agent PostgreSQL 的 `workflows`、`workflow_operations`、`selection_revisions` 和 `result_snapshots` 保存 Agent workflow 与 Java Campaign/Task、operation/request/confirmation、downstreamTaskId 和本地结果引用的关联；它们不取代 Java 的业务状态，也不证明 Java 支持幂等或版本校验。事件和 Outbox 的本地去重只约束 Agent 数据库；外部写入、发送后崩溃和 unknown 按 request ID 对账仍依赖 Java 契约。当前仅表单 patch 接入持久化消费，真实业务写 worker 和完整 checkpoint 恢复尚未实现。

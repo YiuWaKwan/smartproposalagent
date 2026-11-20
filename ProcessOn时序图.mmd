@@ -1,0 +1,122 @@
+sequenceDiagram
+  autonumber
+  participant U as 用户/运营人员
+  participant UI as 业务页面
+  participant API as Agent服务
+  participant C as 会话与Workflow管理
+  participant G as LangGraph工作流
+  participant A as 业务服务适配器
+  participant J as Java SmartProposal服务
+  participant W as 轮询器
+
+  U->>UI: 填写资料、发起推荐或操作名单
+  UI->>API: 发送用户请求
+  API->>C: 读取会话中的 workflow 列表和当前交互对象
+  C-->>API: 返回多个 workflow 及当前 workflow
+  alt 修改当前任务
+    API->>C: 选择当前 workflow（例如任务A）
+  else 新建活动
+    API->>C: 创建新的 workflow（例如活动2）并切换当前对象
+    C-->>API: 返回 workflow B，保留 workflow A
+  else 恢复旧任务
+    API->>C: 查找并校验任务A的访问权限
+    C-->>API: 返回 workflow A 及其上次状态
+  end
+  API->>G: 将本条消息路由给选定的一个 workflow
+  G->>G: 确认已有待处理资料<br/>prepare_context
+  G->>G: 识别收到的请求类型<br/>interpret_event
+  G->>G: 判断请求类型<br/>_event_route
+
+  alt 普通资料修改或确认
+    G->>G: 记录用户的资料修改或确认<br/>apply_event
+    G->>G: 检查资料是否齐全、决定下一步<br/>validate_and_route
+    G->>G: 判断下一步动作<br/>route_after_validation
+
+    alt 资料不齐
+      G->>G: 暂停处理并等待用户补充<br/>wait_for_user
+      G-->>API: 返回需要补充的信息
+      API-->>UI: 展示补充提示
+      UI-->>U: 请用户补充资料
+      U->>UI: 补充资料并提交
+      UI->>API: 发送补充请求
+      API->>G: 恢复工作流
+      G->>G: 重新确认资料并继续处理<br/>prepare_context
+    else 操作需要用户确认
+      G->>G: 整理业务操作内容<br/>prepare_operation_preview
+      G-->>API: 返回操作确认内容
+      API-->>UI: 展示确认内容
+      UI-->>U: 请用户核对并确认
+    else 通过检查、登记待处理操作
+      G->>G: 登记待继续处理的操作<br/>reserve_business_operation
+      G-->>API: 返回处理结果
+    else 无后续动作
+      G-->>API: 返回本轮处理结果
+    end
+
+  else 启动推荐请求
+    G->>G: 整理推荐任务信息<br/>prepare_recommendation_preview
+    G->>A: 查询 Java Task 详情
+    A->>J: GET /api/campaigns/{campaignId}/tasks/{taskId}
+    J-->>A: 返回任务状态、平台和 downstreamTaskId
+    A-->>G: 返回已校验的 Java Task
+    G-->>API: 返回推荐确认内容
+    API-->>UI: 展示推荐任务信息
+    UI-->>U: 请用户确认是否启动推荐
+
+    U->>UI: 确认启动推荐
+    UI->>API: 发送推荐确认请求
+    API->>G: 恢复工作流并处理确认
+
+  else 确认启动推荐（RecommendationOperationConfirmation）
+    G->>G: 处理推荐确认事件<br/>execute_recommendation_operation
+    G->>A: 再次查询 Java Task，确认任务仍可启动
+    A->>J: GET /api/campaigns/{campaignId}/tasks/{taskId}
+    J-->>A: 返回最新任务状态
+    A-->>G: 返回任务检查结果
+    G->>A: 请求 Java 服务启动推荐
+    A->>J: POST /api/campaigns/{campaignId}/tasks/{taskId}/recommend
+    J-->>A: HTTP 200、业务 code=200，表示已受理
+    A-->>G: 返回推荐已受理结果
+    G-->>API: 返回推荐已启动，等待 Java 任务处理
+    API-->>UI: 展示推荐处理中
+    UI-->>U: 展示推荐处理中
+
+  else 查询推荐进展（RecommendationPollEvent）
+    W->>API: 轮询器发起新的进度查询请求
+    API->>G: 发送 RecommendationPollEvent
+    G->>G: 处理推荐轮询事件<br/>execute_recommendation_operation
+    G->>A: 查询 Java Task 状态
+    A->>J: GET /api/campaigns/{campaignId}/tasks/{taskId}
+    J-->>A: 返回 status、progress、downstreamTaskId
+    A-->>G: 返回最新任务状态
+    alt Java Task 仍在处理中
+      G-->>API: 返回当前进度，等待下一次轮询
+      API-->>UI: 更新推荐进度
+    else Java Task 推荐完成
+      G->>A: 读取推荐结果
+      A->>J: GET /api/campaigns/{campaignId}/tasks/{taskId}/results
+      J-->>A: 返回 summary 和 kols[] 候选结果
+      A-->>G: 返回结构化候选结果
+      G->>G: 保存结果引用并生成候选展示数据
+      G-->>API: 返回推荐结果和候选名单
+      API-->>UI: 更新候选名单页面
+      UI-->>U: 展示推荐候选名单
+    end
+
+  else 名单审阅、编辑、保存或最终确认
+    alt 查看候选名单
+      G->>G: 准备候选名单供审阅<br/>wait_for_selection_confirmation
+    else 增减候选人
+      G->>G: 修改待确认的名单<br/>edit_selection_draft
+    else 请求保存名单
+      G->>G: 检查名单保存条件<br/>check_selection_save
+    else 确认最终名单
+      G->>G: 检查最终确认信息<br/>check_final_selection_confirmation
+    end
+    G-->>API: 返回名单处理结果
+    API-->>UI: 更新名单展示和确认状态
+    UI-->>U: 展示最新名单或确认结果
+  end
+
+  G-->>API: 本轮工作流处理结束
+  API-->>UI: 返回页面可展示的结果
